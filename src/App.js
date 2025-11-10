@@ -5,9 +5,16 @@ import PrinterForm from "./components/PrinterForm";
 import InfoModal from "./components/InfoModal";
 import LoadingModal from "./components/LoadingModal";
 import Swal from "sweetalert2";
-import Ping from "./components/Ping";
 import { IoIosAdd } from "react-icons/io";
 import ServerStatusTable from "./components/ServerStatusTable";
+import { createClient } from "@supabase/supabase-js";
+
+// ✅ CONFIGURACIÓN CORRECTA CON TU API KEY
+const supabaseUrl = "https://yracfsgdejnnpsjzqpin.supabase.co";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYWNmc2dkZWpubnBzanpxcGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MDk1MTQsImV4cCI6MjA3Nzk4NTUxNH0.Awd-_7qbY2tHkE8CmWz98uzFwz21e01lhKFi-f-X8qg";
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 function App() {
   const [impresoras, setImpresoras] = useState([]);
@@ -19,46 +26,69 @@ function App() {
     drivers_url: "",
     tipo: "principal",
     toner_reserva: "",
+    direccion: "",
+    numero_serie: "",
+    contador_paginas: "",
+    ultimo_pedido_fecha: "",
   });
   const [editingId, setEditingId] = useState(null);
   const [infoModal, setInfoModal] = useState({ visible: false, data: null });
   const [showLoadingMessage, setShowLoadingMessage] = useState(false);
   const [tablaActiva, setTablaActiva] = useState("principal");
 
-  const urls = "http://192.168.8.166:3001";
-
   // ✅ Función para cargar impresoras
-  const fetchImpresoras = (showMessage = false) => {
+  const fetchImpresoras = async (showMessage = false) => {
     if (showMessage) {
       setShowLoadingMessage(true);
     }
 
-    fetch(urls + "/api/toners")
-      .then((res) => res.json())
-      .then((data) => setImpresoras(data.impresoras || []))
-      .catch((err) => console.error("Error al obtener datos:", err))
-      .finally(() => {
-        if (showMessage) {
-          setTimeout(() => setShowLoadingMessage(false), 500); // Oculta inmediatamente
-        }
+    try {
+      console.log("🔍 Cargando impresoras desde Supabase...");
+
+      const { data, error } = await supabase
+        .from("impresoras")
+        .select("*")
+        .order("id", { ascending: true });
+
+      if (error) throw error;
+
+      console.log(`✅ ${data?.length || 0} impresoras cargadas correctamente`);
+      console.log("📊 Datos recibidos:", data);
+      setImpresoras(data || []);
+    } catch (err) {
+      console.error("❌ Error al cargar impresoras:", err);
+
+      Swal.fire({
+        title: "Error",
+        text: `Error al cargar impresoras: ${err.message}`,
+        icon: "error",
+        background: "#2c2c2c",
+        color: "#fff",
+        confirmButtonColor: "#d33",
       });
+    } finally {
+      if (showMessage) {
+        setTimeout(() => setShowLoadingMessage(false), 500);
+      }
+    }
   };
 
   useEffect(() => {
-    // 🟢 Carga inicial
     fetchImpresoras();
 
-    // 🔁 Refresca automáticamente cada 5 minutos (300000 ms)
     const interval = setInterval(() => {
       fetchImpresoras();
-    }, 3000);
+    }, 300000);
 
-    // 🔴 Limpia el intervalo si el componente se desmonta
     return () => clearInterval(interval);
   }, []);
 
   const handleInputChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -67,8 +97,8 @@ function App() {
     const result = await Swal.fire({
       title: "¿Estás seguro?",
       text: editingId
-        ? "¿Quieres guardar los cambios en la impresora?"
-        : "¿Quieres agregar esta nueva impresora?",
+        ? "¿Guardar cambios en la impresora?"
+        : "¿Agregar nueva impresora?",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Sí, confirmar",
@@ -81,19 +111,29 @@ function App() {
 
     if (!result.isConfirmed) return;
 
-    const method = editingId ? "PUT" : "POST";
-    const url = editingId
-      ? `${urls}/api/impresoras/${editingId}`
-      : `${urls}/api/impresoras`;
-
     try {
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      let error;
 
-      if (!response.ok) throw new Error("Error en la respuesta del servidor");
+      if (editingId) {
+        // ✅ Actualizar impresora existente
+        const { data, error: updateError } = await supabase
+          .from("impresoras")
+          .update(formData)
+          .eq("id", editingId)
+          .select();
+
+        error = updateError;
+      } else {
+        // ✅ Insertar nueva impresora
+        const { data, error: insertError } = await supabase
+          .from("impresoras")
+          .insert([formData])
+          .select();
+
+        error = insertError;
+      }
+
+      if (error) throw error;
 
       await Swal.fire({
         title: editingId ? "¡Cambios guardados!" : "¡Impresora agregada!",
@@ -106,7 +146,7 @@ function App() {
         confirmButtonColor: "#3085d6",
       });
 
-      fetchImpresoras(true); // ⏳ Mostrar spinner
+      fetchImpresoras(true);
 
       // Limpiar y cerrar modal
       setShowModal(false);
@@ -117,13 +157,17 @@ function App() {
         drivers_url: "",
         tipo: "principal",
         toner_reserva: "",
+        direccion: "",
+        numero_serie: "",
+        contador_paginas: "",
+        ultimo_pedido_fecha: "",
       });
       setEditingId(null);
     } catch (err) {
       console.error("Error al guardar:", err);
       Swal.fire({
         title: "Error",
-        text: "Hubo un problema al guardar la impresora.",
+        text: `Hubo un problema al guardar la impresora: ${err.message}`,
         icon: "error",
         background: "#2c2c2c",
         color: "#fff",
@@ -135,7 +179,7 @@ function App() {
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: "¿Estás seguro?",
-      text: "Esta acción eliminará la impresora.",
+      text: "Esta acción eliminará la impresora permanentemente.",
       icon: "warning",
       background: "#2c2c2c",
       color: "#fff",
@@ -148,11 +192,13 @@ function App() {
 
     if (result.isConfirmed) {
       try {
-        await fetch(`${urls}/api/impresoras/${id}`, {
-          method: "DELETE",
-        });
+        const { error } = await supabase
+          .from("impresoras")
+          .delete()
+          .eq("id", id);
 
-        // ✅ Primero mostrar el mensaje de éxito
+        if (error) throw error;
+
         await Swal.fire({
           title: "¡Eliminado!",
           text: "La impresora fue eliminada correctamente.",
@@ -162,13 +208,12 @@ function App() {
           confirmButtonColor: "#3085d6",
         });
 
-        // ✅ Después mostrar spinner y recargar datos
         fetchImpresoras(true);
       } catch (error) {
         console.error("Error al eliminar la impresora:", error);
         Swal.fire({
           title: "Error",
-          text: "No se pudo eliminar la impresora.",
+          text: `No se pudo eliminar la impresora: ${error.message}`,
           icon: "error",
           background: "#2c2c2c",
           color: "#fff",
@@ -179,13 +224,16 @@ function App() {
 
   const handleEdit = (impresora) => {
     setFormData({
-      ip: impresora.ip,
-      sucursal: impresora.sucursal,
-      modelo: impresora.modelo,
-      drivers_url: impresora.drivers_url,
-      tipo: impresora.tipo,
-      toner_reserva: impresora.toner_reserva,
-      direccion: impresora.direccion,
+      ip: impresora.ip || "",
+      sucursal: impresora.sucursal || "",
+      modelo: impresora.modelo || "",
+      drivers_url: impresora.drivers_url || "",
+      tipo: impresora.tipo || "principal",
+      toner_reserva: impresora.toner_reserva || "",
+      direccion: impresora.direccion || "",
+      numero_serie: impresora.numero_serie || "",
+      contador_paginas: impresora.contador_paginas || "",
+      ultimo_pedido_fecha: impresora.ultimo_pedido_fecha || "",
     });
     setEditingId(impresora.id);
     setShowModal(true);
@@ -195,8 +243,8 @@ function App() {
     const pedidoData = {
       impresora_id: impresora.id,
       modelo: impresora.modelo,
-      numero_serie: impresora.numero_serie ?? "N/A",
-      contador_total: impresora.contador_paginas ?? "N/A",
+      numero_serie: impresora.numero_serie || "N/A",
+      contador_total: impresora.contador_paginas || "N/A",
       nombre: impresora.sucursal || "Sucursal Desconocida",
       direccion: impresora.direccion || "Dirección no especificada",
       telefono: "0987 200316",
@@ -226,55 +274,48 @@ Correo: ${pedidoData.correo}
 
     const confirmacion = await Swal.fire({
       title: "¿Confirmar pedido de tóner?",
-      html: `<pre style="text-align:left">${textoParaCopiar}</pre>`,
+      html: `<pre style="text-align:left; color: white; background: #333; padding: 15px; border-radius: 5px;">${textoParaCopiar}</pre>`,
       icon: "question",
       background: "#2c2c2c",
       color: "#fff",
       confirmButtonColor: "#3085d6",
       cancelButtonColor: "#d33",
       showCancelButton: true,
-      confirmButtonText: "Confirmar",
+      confirmButtonText: "Confirmar y Copiar",
       cancelButtonText: "Cancelar",
-      customClass: {
-        popup: "swal2-popup swal2-preformatted-text",
-      },
     });
 
     if (confirmacion.isConfirmed) {
       try {
-        // ✅ Copiar al portapapeles con fallback
+        // ✅ Copiar al portapapeles
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(textoParaCopiar);
         } else {
           const textArea = document.createElement("textarea");
           textArea.value = textoParaCopiar;
-          textArea.style.position = "fixed"; // evita scroll
+          textArea.style.position = "fixed";
           textArea.style.opacity = "0";
           document.body.appendChild(textArea);
           textArea.focus();
           textArea.select();
-
-          const exito = document.execCommand("copy");
+          document.execCommand("copy");
           document.body.removeChild(textArea);
-
-          if (!exito) throw new Error("No se pudo copiar con fallback");
         }
 
-        // ✅ Enviar pedido al backend
-        const response = await fetch(urls + "/api/pedido", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ impresora_id: pedidoData.impresora_id }),
-        });
+        // ✅ Actualizar fecha del último pedido en Supabase
+        const { error } = await supabase
+          .from("impresoras")
+          .update({
+            ultimo_pedido_fecha: new Date().toISOString(),
+          })
+          .eq("id", pedidoData.impresora_id);
 
-        if (!response.ok) {
-          throw new Error("Error al guardar el pedido en el backend");
-        }
+        if (error) throw error;
 
         await Swal.fire({
           icon: "success",
           title: "Pedido confirmado",
-          text: "Los datos fueron copiados al portapapeles y enviados correctamente.",
+          text: "Los datos fueron copiados al portapapeles y la fecha actualizada.",
           background: "#2c2c2c",
           color: "#fff",
           confirmButtonColor: "#3085d6",
@@ -292,7 +333,6 @@ Correo: ${pedidoData.correo}
           background: "#2c2c2c",
           color: "#fff",
           confirmButtonColor: "#3085d6",
-          cancelButtonColor: "#d33",
         });
       }
     }
@@ -300,12 +340,15 @@ Correo: ${pedidoData.correo}
 
   return (
     <div className="App dark-mode">
-      <h1>PrinterManager</h1>
+      <h1>PrinterManager + Supabase(demo)</h1>
+
+      {/* Panel de estado */}
 
       <button className="add-btn" onClick={() => setShowModal(true)}>
         <IoIosAdd />
         Agregar impresora
       </button>
+
       <div className="tab-column-header">
         <div
           className={`tab-column ${
@@ -336,7 +379,7 @@ Correo: ${pedidoData.correo}
       <div>
         {tablaActiva === "principal" && (
           <PrinterTable
-            impresoras={impresoras}
+            impresoras={impresoras.filter((imp) => imp.tipo === "principal")}
             tipo="principal"
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -347,7 +390,7 @@ Correo: ${pedidoData.correo}
 
         {tablaActiva === "backup" && (
           <PrinterTable
-            impresoras={impresoras}
+            impresoras={impresoras.filter((imp) => imp.tipo === "backup")}
             tipo="backup"
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -358,7 +401,7 @@ Correo: ${pedidoData.correo}
 
         {tablaActiva === "comercial" && (
           <PrinterTable
-            impresoras={impresoras}
+            impresoras={impresoras.filter((imp) => imp.tipo === "comercial")}
             tipo="comercial"
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -385,6 +428,10 @@ Correo: ${pedidoData.correo}
               drivers_url: "",
               tipo: "principal",
               toner_reserva: "",
+              direccion: "",
+              numero_serie: "",
+              contador_paginas: "",
+              ultimo_pedido_fecha: "",
             });
           }}
           isEditing={editingId !== null}

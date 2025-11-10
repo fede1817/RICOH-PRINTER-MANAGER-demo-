@@ -1,0 +1,30 @@
+[33m3ff0bd4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m add base de datos 23-10-2025
+[33m7cbc5db[m add spinner cuando se esta imprimiendo algo
+[33md054c26[m actualizacion cada minutos de estado de servidores
+[33m75ad20c[m funcionalidad de impresion desde la web compatible con pdf y doc word anhadido
+[33mf1bbc50[m add funcion para imprimir documentos
+[33mc0e895b[m arreglo de logica de deteccion de cambio de toner
+[33mb37374b[m mejoramiento de la interfaz de usuario
+[33m9d74723[m mejorado la interfaz de ping network tool
+[33m090bfff[m add ping
+[33m80fbe2c[m solucion a bug de nivel de toner desactualizado en alerta de correo
+[33m1deae58[m add sistema para enviar correo cada semana cuando detecta nivel bajo de toner
+[33m361d147[m solucion de bug de niveles de toner en 0
+[33md1d7995[m optimizacion de api, mejorado el sistema trabaja por backend eficientemente
+[33m3df4dad[m node modules
+[33m1d174f3[m correccion de bug de barra de toner y suma de toner de reserva cuando se hace un pedido
+[33m3ae6009[m arreglo de bug, cuando hace la validacion de cambio de toner
+[33m3964c64[m correccion de bugs en el clipboard
+[33m912f83b[m proyecto concluido hasta nueva idea
+[33m16ec0a7[m implementacion de pedidos con bugs
+[33m54945d5[m agregado la parte de la implementacion pendiente de bryan
+[33m07bec62[m actualizacion
+[33m8ac2034[m pestanhas tabs
+[33m35cc421[m agregado spiner de carga y mejorado boton de anhadir impresoras
+[33mfd9d992[m cambios varios a la hora de actualizar datos
+[33m86e7257[m agregado las los mensajes de confirmacion
+[33m8a0ffbd[m agregando funcionalidad de bryan
+[33m66dc552[m readme actualizado
+[33m1ddbf30[m cambio de color de los titulos
+[33m0fed383[m pueto corregido en el backend para que me ande en la pc pesonal
+[33m42933bf[m proyeco en paralelo

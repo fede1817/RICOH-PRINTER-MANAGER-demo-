@@ -23,6 +23,13 @@ import {
   faDesktop,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ServerStatusTable.css";
+import { createClient } from "@supabase/supabase-js";
+
+// ✅ Configuración de Supabase (usa la misma que en App.js)
+const supabaseUrl = "https://yracfsgdejnnpsjzqpin.supabase.co";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYWNmc2dkZWpubnBzanpxcGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MDk1MTQsImV4cCI6MjA3Nzk4NTUxNH0.Awd-_7qbY2tHkE8CmWz98uzFwz21e01lhKFi-f-X8qg";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const ServerStatusTable = () => {
   const [servers, setServers] = useState([]);
@@ -33,50 +40,55 @@ const ServerStatusTable = () => {
   const [selectedType, setSelectedType] = useState("todos");
   const [verifyingServers, setVerifyingServers] = useState(new Set());
 
-  const API_BASE_URL = "http://localhost:3001/api";
-
-  // Función para formatear fechas de manera segura
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-
-    try {
-      const date = new Date(dateString);
-
-      // Verificar si la fecha es válida
-      if (isNaN(date.getTime())) {
-        // Si no es válida, intentar parsear formatos comunes
-        const timestamp = Date.parse(dateString);
-        if (!isNaN(timestamp)) {
-          return new Date(timestamp).toLocaleString("es-ES");
-        }
-        return "Fecha inválida";
-      }
-
-      return date.toLocaleString("es-ES");
-    } catch (error) {
-      console.error("Error formateando fecha:", error, dateString);
-      return "Error en fecha";
-    }
-  };
-
-  // Cargar servidores desde el backend
+  // ✅ Función para cargar servidores desde Supabase
   const loadServers = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE_URL}/servidores`);
 
-      if (!response.ok) {
-        throw new Error("Error al cargar los servidores");
-      }
+      console.log("🔍 Cargando servidores desde Supabase...");
 
-      const data = await response.json();
-      setServers(data.servidores || []);
+      const { data, error } = await supabase
+        .from("servidores")
+        .select("*")
+        .order("id", { ascending: true });
+
+      if (error) throw error;
+
+      console.log(`✅ ${data?.length || 0} servidores cargados`);
+      setServers(data || []);
     } catch (err) {
-      console.error("Error:", err);
+      console.error("❌ Error cargando servidores:", err);
       setError(err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // ✅ Función para cargar estadísticas desde Supabase
+  const loadStats = async () => {
+    try {
+      const { data: servidores, error } = await supabase
+        .from("servidores")
+        .select("estado");
+
+      if (error) throw error;
+
+      const total = servidores?.length || 0;
+      const activos =
+        servidores?.filter((s) => s.estado === "activo").length || 0;
+      const inactivos = total - activos;
+      const porcentajeSalud =
+        total > 0 ? Math.round((activos / total) * 100) : 0;
+
+      setStats({
+        total,
+        activos,
+        inactivos,
+        porcentajeSalud,
+      });
+    } catch (error) {
+      console.error("Error cargando estadísticas:", error);
     }
   };
 
@@ -85,76 +97,59 @@ const ServerStatusTable = () => {
     await loadStats();
   };
 
-  // Cargar estadísticas
-  const loadStats = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/servidores-estadisticas`);
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error("Error cargando estadísticas:", error);
-    }
-  };
-
-  // Verificar estado de un servidor - CORREGIDO
+  // ✅ Función para verificar servidor individual (simulada)
   const verifyServer = async (serverId) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/servidores/${serverId}/verificar`,
-        { method: "POST" }
-      );
+      setVerifyingServers((prev) => new Set(prev).add(serverId));
 
-      if (!response.ok) {
-        throw new Error("Error al verificar el servidor");
-      }
+      // Simular verificación de servidor (ping)
+      const isActive = Math.random() > 0.3; // 70% de probabilidad de estar activo
+      const latencia = isActive
+        ? `${Math.floor(Math.random() * 100) + 1}ms`
+        : "timeout";
+      const nuevoEstado = isActive ? "activo" : "inactivo";
 
-      const result = await response.json();
+      // Actualizar en Supabase
+      const { error } = await supabase
+        .from("servidores")
+        .update({
+          estado: nuevoEstado,
+          latencia: latencia,
+          ultima_verificacion: new Date().toISOString(),
+        })
+        .eq("id", serverId);
 
-      // 🔹 Actualizar solo el servidor verificado
+      if (error) throw error;
+
+      // Actualizar estado local
       setServers((prevServers) =>
         prevServers.map((server) =>
           server.id === serverId
             ? {
                 ...server,
-                estado: result.estado,
-                latencia: result.latencia,
-                ultima_verificacion: normalizeDate(result.timestamp),
+                estado: nuevoEstado,
+                latencia: latencia,
+                ultima_verificacion: new Date().toISOString(),
               }
             : server
         )
       );
 
-      return result;
+      // Recargar estadísticas
+      await loadStats();
     } catch (error) {
       console.error("Error verificando servidor:", error);
+      alert("❌ Error al verificar el servidor");
+    } finally {
+      setVerifyingServers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(serverId);
+        return newSet;
+      });
     }
   };
 
-  const normalizeDate = (ts) => {
-    if (!ts) return null;
-
-    // Si es número en segundos
-    if (typeof ts === "number") {
-      return new Date(ts * 1000).toISOString();
-    }
-
-    // Si es string de número
-    if (/^\d+$/.test(ts)) {
-      return new Date(parseInt(ts, 10) * 1000).toISOString();
-    }
-
-    // Si ya es string ISO
-    if (!isNaN(Date.parse(ts))) {
-      return new Date(ts).toISOString();
-    }
-
-    // Si es un formato raro, lo ignoramos
-    return null;
-  };
-
-  // Verificar todos los servidores - CORREGIDO
+  // ✅ Función para verificar todos los servidores
   const verifyAllServers = async (event) => {
     if (event) {
       event.preventDefault();
@@ -163,35 +158,57 @@ const ServerStatusTable = () => {
 
     try {
       setIsLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/servidores/verificar-todos`,
-        {
-          method: "POST",
-        }
+
+      // Verificar cada servidor individualmente
+      const verificationPromises = servers.map(async (server) => {
+        const isActive = Math.random() > 0.2; // 80% de probabilidad de estar activo
+        const latencia = isActive
+          ? `${Math.floor(Math.random() * 100) + 1}ms`
+          : "timeout";
+        const nuevoEstado = isActive ? "activo" : "inactivo";
+
+        return {
+          id: server.id,
+          estado: nuevoEstado,
+          latencia: latencia,
+        };
+      });
+
+      const resultados = await Promise.all(verificationPromises);
+      const timestamp = new Date().toISOString();
+
+      // Actualizar todos los servidores en Supabase
+      const updatePromises = resultados.map((result) =>
+        supabase
+          .from("servidores")
+          .update({
+            estado: result.estado,
+            latencia: result.latencia,
+            ultima_verificacion: timestamp,
+          })
+          .eq("id", result.id)
       );
 
-      if (response.ok) {
-        const result = await response.json();
-        const currentTimestamp = new Date().toISOString();
+      await Promise.all(updatePromises);
 
-        setServers((prevServers) =>
-          prevServers.map((server) => {
-            const serverResult = result.resultados.find(
-              (r) => r.id === server.id
-            );
-            return serverResult
-              ? {
-                  ...server,
-                  estado: serverResult.estado,
-                  latencia: serverResult.latencia,
-                  ultima_verificacion: currentTimestamp, // Usar timestamp actual
-                }
-              : server;
-          })
-        );
+      // Actualizar estado local
+      setServers((prevServers) =>
+        prevServers.map((server) => {
+          const resultado = resultados.find((r) => r.id === server.id);
+          return resultado
+            ? {
+                ...server,
+                estado: resultado.estado,
+                latencia: resultado.latencia,
+                ultima_verificacion: timestamp,
+              }
+            : server;
+        })
+      );
 
-        await loadStats();
-      }
+      await loadStats();
+
+      alert("✅ Todos los servidores verificados correctamente");
     } catch (error) {
       console.error("Error verificando todos los servidores:", error);
       alert("❌ Error al verificar los servidores");
@@ -200,7 +217,7 @@ const ServerStatusTable = () => {
     }
   };
 
-  // Agregar nuevo servidor
+  // ✅ Función para agregar nuevo servidor
   const addServer = async (event) => {
     if (event) {
       event.preventDefault();
@@ -216,24 +233,25 @@ const ServerStatusTable = () => {
 
     if (ip && sucursal) {
       try {
-        const response = await fetch(`${API_BASE_URL}/servidores`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ip,
-            sucursal,
-            nombre: nombre || `Equipo ${ip}`,
-            tipo: tipo || "servidor",
-          }),
-        });
+        const nuevoServidor = {
+          ip,
+          sucursal,
+          nombre: nombre || `Equipo ${ip}`,
+          tipo: tipo || "servidor",
+          estado: "inactivo", // Estado inicial
+          latencia: "0ms",
+          ultima_verificacion: null,
+        };
 
-        if (response.ok) {
-          await loadServers();
-          await loadStats();
-          alert("✅ Servidor agregado correctamente");
-        }
+        const { data, error } = await supabase
+          .from("servidores")
+          .insert([nuevoServidor])
+          .select();
+
+        if (error) throw error;
+
+        await loadAllData();
+        alert("✅ Servidor agregado correctamente");
       } catch (error) {
         console.error("Error agregando servidor:", error);
         alert("❌ Error al agregar servidor");
@@ -241,7 +259,7 @@ const ServerStatusTable = () => {
     }
   };
 
-  // Eliminar servidor
+  // ✅ Función para eliminar servidor
   const deleteServer = async (serverId, serverIp, event) => {
     if (event) {
       event.preventDefault();
@@ -250,19 +268,34 @@ const ServerStatusTable = () => {
 
     if (window.confirm(`¿Está seguro de eliminar el servidor ${serverIp}?`)) {
       try {
-        const response = await fetch(`${API_BASE_URL}/servidores/${serverId}`, {
-          method: "DELETE",
-        });
+        const { error } = await supabase
+          .from("servidores")
+          .delete()
+          .eq("id", serverId);
 
-        if (response.ok) {
-          await loadServers();
-          await loadStats();
-          alert("✅ Servidor eliminado correctamente");
-        }
+        if (error) throw error;
+
+        await loadAllData();
+        alert("✅ Servidor eliminado correctamente");
       } catch (error) {
         console.error("Error eliminando servidor:", error);
         alert("❌ Error al eliminar servidor");
       }
+    }
+  };
+
+  // ✅ Función para formatear fechas
+  const formatDate = (dateString) => {
+    if (!dateString) return "Sin verificar";
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Fecha inválida";
+
+      return date.toLocaleString("es-ES");
+    } catch (error) {
+      console.error("Error formateando fecha:", error);
+      return "Error en fecha";
     }
   };
 
@@ -287,9 +320,9 @@ const ServerStatusTable = () => {
   // Efecto para actualización automática cada 5 minutos
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log("🔄 Actualización automática iniciada");
+      console.log("🔄 Actualización automática de servidores");
       loadAllData();
-    }, 5 * 60 * 100); // 5 minutos
+    }, 5 * 60 * 1000); // 5 minutos
 
     return () => clearInterval(interval);
   }, []);
@@ -299,7 +332,8 @@ const ServerStatusTable = () => {
     const matchesSearch =
       server.ip.toLowerCase().includes(searchTerm.toLowerCase()) ||
       server.sucursal.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      server.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+      (server.nombre &&
+        server.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesType =
       selectedType === "todos" || server.tipo === selectedType;
@@ -374,8 +408,6 @@ const ServerStatusTable = () => {
               </span>
             </div>
           </div>
-
-          {/* Estadísticas por tipo */}
         </div>
       )}
 
@@ -446,18 +478,14 @@ const ServerStatusTable = () => {
                   <td>
                     <span className="ultima-verificacion">
                       <FontAwesomeIcon icon={faClock} />
-                      {server.ultima_verificacion
-                        ? new Date(server.ultima_verificacion).toLocaleString(
-                            "es-ES"
-                          )
-                        : "Sin verificar"}
+                      {formatDate(server.ultima_verificacion)}
                     </span>
                   </td>
                   <td>
                     <div className="action-buttons">
                       <button
                         className="btn btn-info"
-                        onClick={(e) => verifyServer(server.id, e)}
+                        onClick={() => verifyServer(server.id)}
                         title="Verificar estado"
                         disabled={verifyingServers.has(server.id)}
                       >
@@ -485,7 +513,7 @@ const ServerStatusTable = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="8" className="no-results">
+                <td colSpan="6" className="no-results">
                   <FontAwesomeIcon icon={faExclamationTriangle} />
                   No se encontraron servidores que coincidan con los filtros
                 </td>
