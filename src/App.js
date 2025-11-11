@@ -190,27 +190,24 @@ function App() {
       }
 
       let error;
-      let result;
 
       if (editingId) {
         // ✅ Actualizar impresora existente
-        const { data: updateData, error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from("impresoras")
           .update(dataToSave)
           .eq("id", editingId)
           .select();
 
         error = updateError;
-        result = updateData;
       } else {
         // ✅ Insertar nueva impresora con datos completos
-        const { data: insertData, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from("impresoras")
           .insert([dataToSave])
           .select();
 
         error = insertError;
-        result = insertData;
       }
 
       if (error) throw error;
