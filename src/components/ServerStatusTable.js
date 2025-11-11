@@ -34,6 +34,30 @@ const ServerStatusTable = () => {
   const [stats, setStats] = useState(null);
   const [verifyingServers, setVerifyingServers] = useState(new Set());
 
+  // ✅ Función para generar estado aleatorio (70% activo, 30% inactivo)
+  const generateRandomStatus = () => {
+    return Math.random() > 0.3 ? "activo" : "inactivo";
+  };
+
+  // ✅ Función para generar latencia aleatoria (solo si está activo)
+  const generateRandomLatency = (estado) => {
+    if (estado === "inactivo") {
+      return "timeout";
+    }
+    // Latencia entre 1-1000ms con diferentes rangos de probabilidad
+    const random = Math.random();
+    if (random < 0.6) {
+      // 60% de probabilidad: latencia baja (1-100ms)
+      return `${Math.floor(Math.random() * 100) + 1}ms`;
+    } else if (random < 0.9) {
+      // 30% de probabilidad: latencia media (101-500ms)
+      return `${Math.floor(Math.random() * 400) + 101}ms`;
+    } else {
+      // 10% de probabilidad: latencia alta (501-1000ms)
+      return `${Math.floor(Math.random() * 500) + 501}ms`;
+    }
+  };
+
   // ✅ Función para cargar servidores desde Supabase
   const loadServers = useCallback(async () => {
     try {
@@ -92,17 +116,14 @@ const ServerStatusTable = () => {
     await loadStats();
   }, [loadServers, loadStats]);
 
-  // ✅ Función para verificar servidor individual (simulada)
+  // ✅ Función para verificar servidor individual con datos aleatorios
   const verifyServer = async (serverId) => {
     try {
       setVerifyingServers((prev) => new Set(prev).add(serverId));
 
-      // Simular verificación de servidor (ping)
-      const isActive = Math.random() > 0.3; // 70% de probabilidad de estar activo
-      const latencia = isActive
-        ? `${Math.floor(Math.random() * 100) + 1}ms`
-        : "timeout";
-      const nuevoEstado = isActive ? "activo" : "inactivo";
+      // Generar estado y latencia aleatorios
+      const nuevoEstado = generateRandomStatus();
+      const latencia = generateRandomLatency(nuevoEstado);
 
       // Actualizar en Supabase
       const { error: supabaseError } = await supabase
@@ -111,6 +132,7 @@ const ServerStatusTable = () => {
           estado: nuevoEstado,
           latencia: latencia,
           ultima_verificacion: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq("id", serverId);
 
@@ -125,6 +147,7 @@ const ServerStatusTable = () => {
                 estado: nuevoEstado,
                 latencia: latencia,
                 ultima_verificacion: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
               }
             : server
         )
@@ -132,6 +155,10 @@ const ServerStatusTable = () => {
 
       // Recargar estadísticas
       await loadStats();
+
+      console.log(
+        `✅ Servidor ${serverId} verificado: ${nuevoEstado} - ${latencia}`
+      );
     } catch (err) {
       console.error("Error verificando servidores:", err);
       alert("❌ Error al verificar el servidor");
@@ -144,7 +171,7 @@ const ServerStatusTable = () => {
     }
   };
 
-  // ✅ Función para verificar todos los servidores
+  // ✅ Función para verificar todos los servidores con datos aleatorios
   const verifyAllServers = async (event) => {
     if (event) {
       event.preventDefault();
@@ -154,13 +181,10 @@ const ServerStatusTable = () => {
     try {
       setIsLoading(true);
 
-      // Verificar cada servidor individualmente
+      // Verificar cada servidor individualmente con datos aleatorios
       const verificationPromises = servers.map(async (server) => {
-        const isActive = Math.random() > 0.2; // 80% de probabilidad de estar activo
-        const latencia = isActive
-          ? `${Math.floor(Math.random() * 100) + 1}ms`
-          : "timeout";
-        const nuevoEstado = isActive ? "activo" : "inactivo";
+        const nuevoEstado = generateRandomStatus();
+        const latencia = generateRandomLatency(nuevoEstado);
 
         return {
           id: server.id,
@@ -180,6 +204,7 @@ const ServerStatusTable = () => {
             estado: result.estado,
             latencia: result.latencia,
             ultima_verificacion: timestamp,
+            updated_at: timestamp,
           })
           .eq("id", result.id)
       );
@@ -196,6 +221,7 @@ const ServerStatusTable = () => {
                 estado: resultado.estado,
                 latencia: resultado.latencia,
                 ultima_verificacion: timestamp,
+                updated_at: timestamp,
               }
             : server;
         })
@@ -203,7 +229,15 @@ const ServerStatusTable = () => {
 
       await loadStats();
 
-      alert("✅ Todos los servidores verificados correctamente");
+      // Mostrar resumen de la verificación
+      const activos = resultados.filter((r) => r.estado === "activo").length;
+      const inactivos = resultados.filter(
+        (r) => r.estado === "inactivo"
+      ).length;
+
+      alert(
+        `✅ Verificación completada:\n• ${activos} servidores activos\n• ${inactivos} servidores inactivos`
+      );
     } catch (err) {
       console.error("Error verificando todos los servidores:", err);
       alert("❌ Error al verificar los servidores");
@@ -212,7 +246,7 @@ const ServerStatusTable = () => {
     }
   };
 
-  // ✅ Función para agregar nuevo servidor
+  // ✅ Función para agregar nuevo servidor con estado aleatorio
   const addServer = async (event) => {
     if (event) {
       event.preventDefault();
@@ -221,21 +255,21 @@ const ServerStatusTable = () => {
 
     const ip = prompt("Ingrese la IP del nuevo servidor:");
     const sucursal = prompt("Ingrese la sucursal:");
-    const nombre = prompt("Ingrese el nombre del equipo:");
-    const tipo = prompt(
-      "Ingrese el tipo (servidor, switch, router, firewall):"
-    );
 
     if (ip && sucursal) {
       try {
+        // Generar estado y latencia inicial aleatorios
+        const estadoInicial = generateRandomStatus();
+        const latenciaInicial = generateRandomLatency(estadoInicial);
+
         const nuevoServidor = {
           ip,
           sucursal,
-          nombre: nombre || `Equipo ${ip}`,
-          tipo: tipo || "servidor",
-          estado: "inactivo", // Estado inicial
-          latencia: "0ms",
-          ultima_verificacion: null,
+          estado: estadoInicial,
+          latencia: latenciaInicial,
+          ultima_verificacion: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
 
         const { error: supabaseError } = await supabase
@@ -246,7 +280,6 @@ const ServerStatusTable = () => {
         if (supabaseError) throw supabaseError;
 
         await loadAllData();
-        alert("✅ Servidor agregado correctamente");
       } catch (err) {
         console.error("Error agregando servidor:", err);
         alert("❌ Error al agregar servidor");
@@ -506,7 +539,7 @@ const ServerStatusTable = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="no-results">
+                <td colSpan="8" className="no-results">
                   <FontAwesomeIcon icon={faExclamationTriangle} />
                   No se encontraron servidores que coincidan con los filtros
                 </td>
