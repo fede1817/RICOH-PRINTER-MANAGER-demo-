@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faServer,
   faBuilding,
-  faNetworkWired,
   faSearch,
   faPlus,
   faSync,
@@ -15,11 +14,7 @@ import {
   faSignal,
   faClock,
   faCog,
-  faFilter,
-  faDownload,
   faSpinner,
-  faSitemap,
-  faShieldAlt,
   faDesktop,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ServerStatusTable.css";
@@ -37,23 +32,22 @@ const ServerStatusTable = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
-  const [selectedType, setSelectedType] = useState("todos");
   const [verifyingServers, setVerifyingServers] = useState(new Set());
 
   // ✅ Función para cargar servidores desde Supabase
-  const loadServers = async () => {
+  const loadServers = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
       console.log("🔍 Cargando servidores desde Supabase...");
 
-      const { data, error } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from("servidores")
         .select("*")
         .order("id", { ascending: true });
 
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
 
       console.log(`✅ ${data?.length || 0} servidores cargados`);
       setServers(data || []);
@@ -63,16 +57,16 @@ const ServerStatusTable = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // ✅ Función para cargar estadísticas desde Supabase
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
-      const { data: servidores, error } = await supabase
+      const { data: servidores, error: supabaseError } = await supabase
         .from("servidores")
         .select("estado");
 
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
 
       const total = servidores?.length || 0;
       const activos =
@@ -87,15 +81,16 @@ const ServerStatusTable = () => {
         inactivos,
         porcentajeSalud,
       });
-    } catch (error) {
-      console.error("Error cargando estadísticas:", error);
+    } catch (err) {
+      console.error("Error cargando estadísticas:", err);
     }
-  };
+  }, []);
 
-  const loadAllData = async () => {
+  // ✅ Función para cargar todos los datos
+  const loadAllData = useCallback(async () => {
     await loadServers();
     await loadStats();
-  };
+  }, [loadServers, loadStats]);
 
   // ✅ Función para verificar servidor individual (simulada)
   const verifyServer = async (serverId) => {
@@ -110,7 +105,7 @@ const ServerStatusTable = () => {
       const nuevoEstado = isActive ? "activo" : "inactivo";
 
       // Actualizar en Supabase
-      const { error } = await supabase
+      const { error: supabaseError } = await supabase
         .from("servidores")
         .update({
           estado: nuevoEstado,
@@ -119,7 +114,7 @@ const ServerStatusTable = () => {
         })
         .eq("id", serverId);
 
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
 
       // Actualizar estado local
       setServers((prevServers) =>
@@ -137,8 +132,8 @@ const ServerStatusTable = () => {
 
       // Recargar estadísticas
       await loadStats();
-    } catch (error) {
-      console.error("Error verificando servidor:", error);
+    } catch (err) {
+      console.error("Error verificando servidores:", err);
       alert("❌ Error al verificar el servidor");
     } finally {
       setVerifyingServers((prev) => {
@@ -209,8 +204,8 @@ const ServerStatusTable = () => {
       await loadStats();
 
       alert("✅ Todos los servidores verificados correctamente");
-    } catch (error) {
-      console.error("Error verificando todos los servidores:", error);
+    } catch (err) {
+      console.error("Error verificando todos los servidores:", err);
       alert("❌ Error al verificar los servidores");
     } finally {
       setIsLoading(false);
@@ -243,17 +238,17 @@ const ServerStatusTable = () => {
           ultima_verificacion: null,
         };
 
-        const { data, error } = await supabase
+        const { error: supabaseError } = await supabase
           .from("servidores")
           .insert([nuevoServidor])
           .select();
 
-        if (error) throw error;
+        if (supabaseError) throw supabaseError;
 
         await loadAllData();
         alert("✅ Servidor agregado correctamente");
-      } catch (error) {
-        console.error("Error agregando servidor:", error);
+      } catch (err) {
+        console.error("Error agregando servidor:", err);
         alert("❌ Error al agregar servidor");
       }
     }
@@ -268,17 +263,17 @@ const ServerStatusTable = () => {
 
     if (window.confirm(`¿Está seguro de eliminar el servidor ${serverIp}?`)) {
       try {
-        const { error } = await supabase
+        const { error: supabaseError } = await supabase
           .from("servidores")
           .delete()
           .eq("id", serverId);
 
-        if (error) throw error;
+        if (supabaseError) throw supabaseError;
 
         await loadAllData();
         alert("✅ Servidor eliminado correctamente");
-      } catch (error) {
-        console.error("Error eliminando servidor:", error);
+      } catch (err) {
+        console.error("Error eliminando servidor:", err);
         alert("❌ Error al eliminar servidor");
       }
     }
@@ -293,8 +288,8 @@ const ServerStatusTable = () => {
       if (isNaN(date.getTime())) return "Fecha inválida";
 
       return date.toLocaleString("es-ES");
-    } catch (error) {
-      console.error("Error formateando fecha:", error);
+    } catch (err) {
+      console.error("Error formateando fecha:", err);
       return "Error en fecha";
     }
   };
@@ -313,11 +308,12 @@ const ServerStatusTable = () => {
     setSearchTerm("");
   };
 
+  // ✅ Cargar datos iniciales
   useEffect(() => {
     loadAllData();
-  }, []);
+  }, [loadAllData]);
 
-  // Efecto para actualización automática cada 5 minutos
+  // ✅ Efecto para actualización automática cada 5 minutos
   useEffect(() => {
     const interval = setInterval(() => {
       console.log("🔄 Actualización automática de servidores");
@@ -325,7 +321,7 @@ const ServerStatusTable = () => {
     }, 5 * 60 * 1000); // 5 minutos
 
     return () => clearInterval(interval);
-  }, []);
+  }, [loadAllData]);
 
   // Filtrar servidores
   const filteredServers = servers.filter((server) => {
@@ -335,10 +331,7 @@ const ServerStatusTable = () => {
       (server.nombre &&
         server.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesType =
-      selectedType === "todos" || server.tipo === selectedType;
-
-    return matchesSearch && matchesType;
+    return matchesSearch;
   });
 
   if (isLoading) {

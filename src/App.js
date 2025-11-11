@@ -116,7 +116,7 @@ function App() {
 
       if (editingId) {
         // ✅ Actualizar impresora existente
-        const { data, error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from("impresoras")
           .update(formData)
           .eq("id", editingId)
@@ -125,7 +125,7 @@ function App() {
         error = updateError;
       } else {
         // ✅ Insertar nueva impresora
-        const { data, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from("impresoras")
           .insert([formData])
           .select();
