@@ -27,14 +27,62 @@ function App() {
     tipo: "principal",
     toner_reserva: "",
     direccion: "",
-    numero_serie: "",
-    contador_paginas: "",
-    ultimo_pedido_fecha: "",
+    // Estos se generarán automáticamente:
+    // numero_serie: "",
+    // contador_paginas: "",
+    // toner_anterior: "",
+    // ultimo_pedido_fecha: "",
   });
   const [editingId, setEditingId] = useState(null);
   const [infoModal, setInfoModal] = useState({ visible: false, data: null });
   const [showLoadingMessage, setShowLoadingMessage] = useState(false);
   const [tablaActiva, setTablaActiva] = useState("principal");
+
+  // ✅ Función para generar número de serie aleatorio
+  const generateRandomSerial = () => {
+    const patterns = [
+      // Patrón 1: Y871RA10103
+      () => {
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const numbers = "0123456789";
+        const randomLetter = () =>
+          letters[Math.floor(Math.random() * letters.length)];
+        const randomNumber = () =>
+          numbers[Math.floor(Math.random() * numbers.length)];
+        return `${randomLetter()}${randomNumber()}${randomNumber()}${randomNumber()}${randomLetter()}${randomLetter()}${randomNumber()}${randomNumber()}${randomNumber()}${randomNumber()}${randomNumber()}`;
+      },
+      // Patrón 2: AB123CD456
+      () => {
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const numbers = "0123456789";
+        const randomLetter = () =>
+          letters[Math.floor(Math.random() * letters.length)];
+        const randomNumber = () =>
+          numbers[Math.floor(Math.random() * numbers.length)];
+        return `${randomLetter()}${randomLetter()}${randomNumber()}${randomNumber()}${randomNumber()}${randomLetter()}${randomLetter()}${randomNumber()}${randomNumber()}${randomNumber()}`;
+      },
+      // Patrón 3: X9Z8Y7W654
+      () => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const randomChar = () =>
+          chars[Math.floor(Math.random() * chars.length)];
+        return Array.from({ length: 10 }, randomChar).join("");
+      },
+    ];
+
+    const randomPattern = patterns[Math.floor(Math.random() * patterns.length)];
+    return randomPattern();
+  };
+
+  // ✅ Función para generar contador de páginas aleatorio
+  const generateRandomPageCount = () => {
+    return Math.floor(Math.random() * 500000 + 100000).toString();
+  };
+
+  // ✅ Función para generar toner anterior aleatorio (1-100)
+  const generateRandomToner = () => {
+    return Math.floor(Math.random() * 100 + 1);
+  };
 
   // ✅ Función para cargar impresoras
   const fetchImpresoras = async (showMessage = false) => {
@@ -112,25 +160,57 @@ function App() {
     if (!result.isConfirmed) return;
 
     try {
+      let dataToSave;
+
+      if (editingId) {
+        // ✅ Actualizar impresora existente - solo los campos del formulario
+        dataToSave = { ...formData };
+      } else {
+        // ✅ Insertar nueva impresora - generar datos automáticos
+        dataToSave = {
+          ...formData,
+          numero_serie: generateRandomSerial(),
+          contador_paginas: generateRandomPageCount(),
+          toner_anterior: generateRandomToner(),
+          fecha_ultimo_cambio: new Date().toISOString(),
+          ultimo_pedido_contador: generateRandomPageCount(),
+          cambios_toner: 0,
+          telefono: "0987 200316",
+          correo: "bryan.medina@surcomercial.com.py",
+          ultima_alerta: new Date().toISOString(),
+          ultimo_pedido_fecha: new Date().toISOString(), // ✅ Agregar fecha válida
+        };
+
+        // Remover campos vacíos que puedan causar problemas
+        Object.keys(dataToSave).forEach((key) => {
+          if (dataToSave[key] === "" || dataToSave[key] === null) {
+            delete dataToSave[key];
+          }
+        });
+      }
+
       let error;
+      let result;
 
       if (editingId) {
         // ✅ Actualizar impresora existente
-        const { error: updateError } = await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from("impresoras")
-          .update(formData)
+          .update(dataToSave)
           .eq("id", editingId)
           .select();
 
         error = updateError;
+        result = updateData;
       } else {
-        // ✅ Insertar nueva impresora
-        const { error: insertError } = await supabase
+        // ✅ Insertar nueva impresora con datos completos
+        const { data: insertData, error: insertError } = await supabase
           .from("impresoras")
-          .insert([formData])
+          .insert([dataToSave])
           .select();
 
         error = insertError;
+        result = insertData;
       }
 
       if (error) throw error;
@@ -139,7 +219,7 @@ function App() {
         title: editingId ? "¡Cambios guardados!" : "¡Impresora agregada!",
         text: editingId
           ? "Los datos fueron actualizados correctamente."
-          : "La nueva impresora fue guardada correctamente.",
+          : `La nueva impresora fue guardada correctamente.\nNúmero de serie: ${dataToSave.numero_serie}`,
         icon: "success",
         background: "#2c2c2c",
         color: "#fff",
@@ -158,9 +238,6 @@ function App() {
         tipo: "principal",
         toner_reserva: "",
         direccion: "",
-        numero_serie: "",
-        contador_paginas: "",
-        ultimo_pedido_fecha: "",
       });
       setEditingId(null);
     } catch (err) {
@@ -231,9 +308,6 @@ function App() {
       tipo: impresora.tipo || "principal",
       toner_reserva: impresora.toner_reserva || "",
       direccion: impresora.direccion || "",
-      numero_serie: impresora.numero_serie || "",
-      contador_paginas: impresora.contador_paginas || "",
-      ultimo_pedido_fecha: impresora.ultimo_pedido_fecha || "",
     });
     setEditingId(impresora.id);
     setShowModal(true);
@@ -342,8 +416,6 @@ Correo: ${pedidoData.correo}
     <div className="App dark-mode">
       <h1>PrinterManager + Supabase(demo)</h1>
 
-      {/* Panel de estado */}
-
       <button className="add-btn" onClick={() => setShowModal(true)}>
         <IoIosAdd />
         Agregar impresora
@@ -429,9 +501,6 @@ Correo: ${pedidoData.correo}
               tipo: "principal",
               toner_reserva: "",
               direccion: "",
-              numero_serie: "",
-              contador_paginas: "",
-              ultimo_pedido_fecha: "",
             });
           }}
           isEditing={editingId !== null}
