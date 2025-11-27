@@ -4,17 +4,23 @@ import PrinterTable from "./components/PrinterTable";
 import PrinterForm from "./components/PrinterForm";
 import InfoModal from "./components/InfoModal";
 import LoadingModal from "./components/LoadingModal";
+import Login from "./components/Login";
 import Swal from "sweetalert2";
-import { IoIosAdd } from "react-icons/io";
+import {
+  IoIosAdd,
+  IoIosPrint,
+  IoIosPulse,
+  IoIosMenu,
+  IoIosArrowDropleft,
+  IoIosArrowDropright,
+  IoIosCart,
+  IoIosLogOut,
+  IoIosPerson,
+  IoIosPersonAdd,
+} from "react-icons/io";
 import ServerStatusTable from "./components/ServerStatusTable";
-import { createClient } from "@supabase/supabase-js";
-
-// ✅ CONFIGURACIÓN CORRECTA CON TU API KEY
-const supabaseUrl = "https://yracfsgdejnnpsjzqpin.supabase.co";
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYWNmc2dkZWpubnBzanpxcGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MDk1MTQsImV4cCI6MjA3Nzk4NTUxNH0.Awd-_7qbY2tHkE8CmWz98uzFwz21e01lhKFi-f-X8qg";
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+import PedidosSection from "./components/PedidosSection";
+import Censo from "./components/Censo";
 
 function App() {
   const [impresoras, setImpresoras] = useState([]);
@@ -26,127 +32,168 @@ function App() {
     drivers_url: "",
     tipo: "principal",
     toner_reserva: "",
-    direccion: "",
-    // Estos se generarán automáticamente:
-    // numero_serie: "",
-    // contador_paginas: "",
-    // toner_anterior: "",
-    // ultimo_pedido_fecha: "",
   });
   const [editingId, setEditingId] = useState(null);
   const [infoModal, setInfoModal] = useState({ visible: false, data: null });
   const [showLoadingMessage, setShowLoadingMessage] = useState(false);
-  const [tablaActiva, setTablaActiva] = useState("principal");
 
-  // ✅ Función para generar número de serie aleatorio
-  const generateRandomSerial = () => {
-    const patterns = [
-      // Patrón 1: Y871RA10103
-      () => {
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const numbers = "0123456789";
-        const randomLetter = () =>
-          letters[Math.floor(Math.random() * letters.length)];
-        const randomNumber = () =>
-          numbers[Math.floor(Math.random() * numbers.length)];
-        return `${randomLetter()}${randomNumber()}${randomNumber()}${randomNumber()}${randomLetter()}${randomLetter()}${randomNumber()}${randomNumber()}${randomNumber()}${randomNumber()}${randomNumber()}`;
-      },
-      // Patrón 2: AB123CD456
-      () => {
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const numbers = "0123456789";
-        const randomLetter = () =>
-          letters[Math.floor(Math.random() * letters.length)];
-        const randomNumber = () =>
-          numbers[Math.floor(Math.random() * numbers.length)];
-        return `${randomLetter()}${randomLetter()}${randomNumber()}${randomNumber()}${randomNumber()}${randomLetter()}${randomLetter()}${randomNumber()}${randomNumber()}${randomNumber()}`;
-      },
-      // Patrón 3: X9Z8Y7W654
-      () => {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        const randomChar = () =>
-          chars[Math.floor(Math.random() * chars.length)];
-        return Array.from({ length: 10 }, randomChar).join("");
-      },
-    ];
+  // 🔥 PERSISTIR tablaActiva EN localStorage
+  const [tablaActiva, setTablaActiva] = useState(() => {
+    const saved = localStorage.getItem("tablaActiva");
+    return saved || "impresoras";
+  });
 
-    const randomPattern = patterns[Math.floor(Math.random() * patterns.length)];
-    return randomPattern();
+  const [tipoImpresoraActiva, setTipoImpresoraActiva] = useState("principal");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+
+  // Estados de autenticación
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState(null);
+
+  const urls = "http://192.168.8.166:3001";
+
+  // Verificar autenticación al cargar
+  useEffect(() => {
+    const authStatus = localStorage.getItem("isAuthenticated");
+    const adminStatus = localStorage.getItem("isAdmin");
+    const userData = localStorage.getItem("user");
+
+    if (authStatus === "true") {
+      setIsAuthenticated(true);
+      setIsAdmin(adminStatus === "true");
+      setUser(userData ? JSON.parse(userData) : null);
+    }
+
+    // 🔥 VERIFICAR PARÁMETROS URL PARA DETERMINAR LA SECCIÓN
+    const urlParams = new URLSearchParams(window.location.search);
+    const censoParam = urlParams.get("censo");
+    const sectionParam = urlParams.get("section");
+
+    if (censoParam || sectionParam === "censos") {
+      // Si hay parámetro de censo o section=censos, activar la sección de censos
+      setTablaActiva("censos");
+    }
+  }, []);
+
+  // 🔥 GUARDAR tablaActiva EN localStorage CUANDO CAMBIE
+  useEffect(() => {
+    localStorage.setItem("tablaActiva", tablaActiva);
+  }, [tablaActiva]);
+
+  // 🔥 FUNCIÓN PARA CAMBIAR TABLA ACTIVA
+  const handleTablaActivaChange = (nuevaTabla) => {
+    setTablaActiva(nuevaTabla);
   };
 
-  // ✅ Función para generar contador de páginas aleatorio
-  const generateRandomPageCount = () => {
-    return Math.floor(Math.random() * 500000 + 100000).toString();
+  const actualizarImpresora = (id, nuevosDatos) => {
+    setImpresoras((prev) =>
+      prev.map((imp) => (imp.id === id ? { ...imp, ...nuevosDatos } : imp))
+    );
   };
 
-  // ✅ Función para generar toner anterior aleatorio (1-100)
-  const generateRandomToner = () => {
-    return Math.floor(Math.random() * 100 + 1);
+  // Función para actualizar todas las impresoras
+  const actualizarTodasImpresoras = (nuevasImpresoras) => {
+    setImpresoras((prevImpresoras) => {
+      // Combinar los nuevos estados con la información existente de las impresoras
+      return prevImpresoras.map((impresora) => {
+        const impresoraActualizada = nuevasImpresoras.find(
+          (nueva) => nueva.id === impresora.id
+        );
+        if (impresoraActualizada) {
+          return {
+            ...impresora,
+            estado: impresoraActualizada.estado,
+            ultima_verificacion: impresoraActualizada.ultima_verificacion,
+          };
+        }
+        return impresora;
+      });
+    });
   };
-
   // ✅ Función para cargar impresoras
-  const fetchImpresoras = async (showMessage = false) => {
+  const fetchImpresoras = (showMessage = false) => {
+    if (!isAdmin) return; // Solo cargar si es admin
+
     if (showMessage) {
       setShowLoadingMessage(true);
     }
 
-    try {
-      console.log("🔍 Cargando impresoras desde Supabase...");
-
-      const { data, error } = await supabase
-        .from("impresoras")
-        .select("*")
-        .order("id", { ascending: true });
-
-      if (error) throw error;
-
-      console.log(`✅ ${data?.length || 0} impresoras cargadas correctamente`);
-      console.log("📊 Datos recibidos:", data);
-      setImpresoras(data || []);
-    } catch (err) {
-      console.error("❌ Error al cargar impresoras:", err);
-
-      Swal.fire({
-        title: "Error",
-        text: `Error al cargar impresoras: ${err.message}`,
-        icon: "error",
-        background: "#2c2c2c",
-        color: "#fff",
-        confirmButtonColor: "#d33",
+    fetch(urls + "/api/toners")
+      .then((res) => res.json())
+      .then((data) => setImpresoras(data.impresoras || []))
+      .catch((err) => console.error("Error al obtener datos:", err))
+      .finally(() => {
+        if (showMessage) {
+          setTimeout(() => setShowLoadingMessage(false), 500);
+        }
       });
-    } finally {
-      if (showMessage) {
-        setTimeout(() => setShowLoadingMessage(false), 500);
-      }
-    }
   };
 
   useEffect(() => {
-    fetchImpresoras();
-
-    const interval = setInterval(() => {
+    if (isAuthenticated && isAdmin) {
       fetchImpresoras();
-    }, 300000);
+      const interval = setInterval(() => {
+        fetchImpresoras();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, isAdmin]);
 
-    return () => clearInterval(interval);
-  }, []);
+  // Función de login
+  // En App.js, modifica la función handleLogin
+  const handleLogin = (userData, adminStatus, seccionInicial = null) => {
+    setUser(userData);
+    setIsAuthenticated(true);
+    setIsAdmin(adminStatus);
+
+    // 🔥 USAR LA SECCIÓN INICIAL SI SE PROPORCIONA, SINO LA LÓGICA NORMAL
+    if (seccionInicial) {
+      setTablaActiva(seccionInicial);
+    } else if (!adminStatus) {
+      setTablaActiva("pedidos");
+    }
+    // Si es admin y no hay sección inicial, se mantiene la que estaba en localStorage
+  };
+
+  // Función de logout
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: "¿Cerrar sesión?",
+      text: "¿Estás seguro de que quieres salir?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Sí, salir",
+      cancelButtonText: "Cancelar",
+      background: "#2c2c2c",
+      color: "#fff",
+    });
+
+    if (result.isConfirmed) {
+      localStorage.removeItem("isAuthenticated");
+      localStorage.removeItem("isAdmin");
+      localStorage.removeItem("user");
+      localStorage.removeItem("tablaActiva"); // 🔥 Limpiar también el estado de tabla
+      setIsAuthenticated(false);
+      setIsAdmin(false);
+      setUser(null);
+      setTablaActiva("impresoras");
+    }
+  };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const result = await Swal.fire({
       title: "¿Estás seguro?",
       text: editingId
-        ? "¿Guardar cambios en la impresora?"
-        : "¿Agregar nueva impresora?",
+        ? "¿Quieres guardar los cambios en la impresora?"
+        : "¿Quieres agregar esta nueva impresora?",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Sí, confirmar",
@@ -159,64 +206,25 @@ function App() {
 
     if (!result.isConfirmed) return;
 
+    const method = editingId ? "PUT" : "POST";
+    const url = editingId
+      ? `${urls}/api/impresoras/${editingId}`
+      : `${urls}/api/impresoras`;
+
     try {
-      let dataToSave;
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-      if (editingId) {
-        // ✅ Actualizar impresora existente - solo los campos del formulario
-        dataToSave = { ...formData };
-      } else {
-        // ✅ Insertar nueva impresora - generar datos automáticos
-        dataToSave = {
-          ...formData,
-          numero_serie: generateRandomSerial(),
-          contador_paginas: generateRandomPageCount(),
-          toner_anterior: generateRandomToner(),
-          fecha_ultimo_cambio: new Date().toISOString(),
-          ultimo_pedido_contador: generateRandomPageCount(),
-          cambios_toner: 0,
-          telefono: "0987 200316",
-          correo: "bryan.medina@surcomercial.com.py",
-          ultima_alerta: new Date().toISOString(),
-          ultimo_pedido_fecha: new Date().toISOString(), // ✅ Agregar fecha válida
-        };
-
-        // Remover campos vacíos que puedan causar problemas
-        Object.keys(dataToSave).forEach((key) => {
-          if (dataToSave[key] === "" || dataToSave[key] === null) {
-            delete dataToSave[key];
-          }
-        });
-      }
-
-      let error;
-
-      if (editingId) {
-        // ✅ Actualizar impresora existente
-        const { error: updateError } = await supabase
-          .from("impresoras")
-          .update(dataToSave)
-          .eq("id", editingId)
-          .select();
-
-        error = updateError;
-      } else {
-        // ✅ Insertar nueva impresora con datos completos
-        const { error: insertError } = await supabase
-          .from("impresoras")
-          .insert([dataToSave])
-          .select();
-
-        error = insertError;
-      }
-
-      if (error) throw error;
+      if (!response.ok) throw new Error("Error en la respuesta del servidor");
 
       await Swal.fire({
         title: editingId ? "¡Cambios guardados!" : "¡Impresora agregada!",
         text: editingId
           ? "Los datos fueron actualizados correctamente."
-          : `La nueva impresora fue guardada correctamente.\nNúmero de serie: ${dataToSave.numero_serie}`,
+          : "La nueva impresora fue guardada correctamente.",
         icon: "success",
         background: "#2c2c2c",
         color: "#fff",
@@ -224,8 +232,6 @@ function App() {
       });
 
       fetchImpresoras(true);
-
-      // Limpiar y cerrar modal
       setShowModal(false);
       setFormData({
         ip: "",
@@ -234,14 +240,13 @@ function App() {
         drivers_url: "",
         tipo: "principal",
         toner_reserva: "",
-        direccion: "",
       });
       setEditingId(null);
     } catch (err) {
       console.error("Error al guardar:", err);
       Swal.fire({
         title: "Error",
-        text: `Hubo un problema al guardar la impresora: ${err.message}`,
+        text: "Hubo un problema al guardar la impresora.",
         icon: "error",
         background: "#2c2c2c",
         color: "#fff",
@@ -253,7 +258,7 @@ function App() {
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: "¿Estás seguro?",
-      text: "Esta acción eliminará la impresora permanentemente.",
+      text: "Esta acción eliminará la impresora.",
       icon: "warning",
       background: "#2c2c2c",
       color: "#fff",
@@ -266,12 +271,9 @@ function App() {
 
     if (result.isConfirmed) {
       try {
-        const { error } = await supabase
-          .from("impresoras")
-          .delete()
-          .eq("id", id);
-
-        if (error) throw error;
+        await fetch(`${urls}/api/impresoras/${id}`, {
+          method: "DELETE",
+        });
 
         await Swal.fire({
           title: "¡Eliminado!",
@@ -287,7 +289,7 @@ function App() {
         console.error("Error al eliminar la impresora:", error);
         Swal.fire({
           title: "Error",
-          text: `No se pudo eliminar la impresora: ${error.message}`,
+          text: "No se pudo eliminar la impresora.",
           icon: "error",
           background: "#2c2c2c",
           color: "#fff",
@@ -298,13 +300,13 @@ function App() {
 
   const handleEdit = (impresora) => {
     setFormData({
-      ip: impresora.ip || "",
-      sucursal: impresora.sucursal || "",
-      modelo: impresora.modelo || "",
-      drivers_url: impresora.drivers_url || "",
-      tipo: impresora.tipo || "principal",
-      toner_reserva: impresora.toner_reserva || "",
-      direccion: impresora.direccion || "",
+      ip: impresora.ip,
+      sucursal: impresora.sucursal,
+      modelo: impresora.modelo,
+      drivers_url: impresora.drivers_url,
+      tipo: impresora.tipo,
+      toner_reserva: impresora.toner_reserva,
+      direccion: impresora.direccion,
     });
     setEditingId(impresora.id);
     setShowModal(true);
@@ -314,8 +316,8 @@ function App() {
     const pedidoData = {
       impresora_id: impresora.id,
       modelo: impresora.modelo,
-      numero_serie: impresora.numero_serie || "N/A",
-      contador_total: impresora.contador_paginas || "N/A",
+      numero_serie: impresora.numero_serie ?? "N/A",
+      contador_total: impresora.contador_paginas ?? "N/A",
       nombre: impresora.sucursal || "Sucursal Desconocida",
       direccion: impresora.direccion || "Dirección no especificada",
       telefono: "0987 200316",
@@ -345,20 +347,22 @@ Correo: ${pedidoData.correo}
 
     const confirmacion = await Swal.fire({
       title: "¿Confirmar pedido de tóner?",
-      html: `<pre style="text-align:left; color: white; background: #333; padding: 15px; border-radius: 5px;">${textoParaCopiar}</pre>`,
+      html: `<pre style="text-align:left">${textoParaCopiar}</pre>`,
       icon: "question",
       background: "#2c2c2c",
       color: "#fff",
       confirmButtonColor: "#3085d6",
       cancelButtonColor: "#d33",
       showCancelButton: true,
-      confirmButtonText: "Confirmar y Copiar",
+      confirmButtonText: "Confirmar",
       cancelButtonText: "Cancelar",
+      customClass: {
+        popup: "swal2-popup swal2-preformatted-text",
+      },
     });
 
     if (confirmacion.isConfirmed) {
       try {
-        // ✅ Copiar al portapapeles
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(textoParaCopiar);
         } else {
@@ -369,24 +373,25 @@ Correo: ${pedidoData.correo}
           document.body.appendChild(textArea);
           textArea.focus();
           textArea.select();
-          document.execCommand("copy");
+          const exito = document.execCommand("copy");
           document.body.removeChild(textArea);
+          if (!exito) throw new Error("No se pudo copiar con fallback");
         }
 
-        // ✅ Actualizar fecha del último pedido en Supabase
-        const { error } = await supabase
-          .from("impresoras")
-          .update({
-            ultimo_pedido_fecha: new Date().toISOString(),
-          })
-          .eq("id", pedidoData.impresora_id);
+        const response = await fetch(urls + "/api/pedido", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ impresora_id: pedidoData.impresora_id }),
+        });
 
-        if (error) throw error;
+        if (!response.ok) {
+          throw new Error("Error al guardar el pedido en el backend");
+        }
 
         await Swal.fire({
           icon: "success",
           title: "Pedido confirmado",
-          text: "Los datos fueron copiados al portapapeles y la fecha actualizada.",
+          text: "Los datos fueron copiados al portapapeles y enviados correctamente.",
           background: "#2c2c2c",
           color: "#fff",
           confirmButtonColor: "#3085d6",
@@ -404,84 +409,245 @@ Correo: ${pedidoData.correo}
           background: "#2c2c2c",
           color: "#fff",
           confirmButtonColor: "#3085d6",
+          cancelButtonColor: "#d33",
         });
       }
     }
   };
 
+  // Opciones del sidebar - varían según el rol
+  const menuItems = isAdmin
+    ? [
+        {
+          id: "impresoras",
+          label: "Impresoras",
+          icon: <IoIosPrint className="text-2xl" />,
+        },
+        {
+          id: "servidores",
+          label: "Servidores",
+          icon: <IoIosPulse className="text-2xl" />,
+        },
+        {
+          id: "pedidos",
+          label: "Pedidos",
+          icon: <IoIosCart className="text-2xl" />,
+        },
+        {
+          id: "censos",
+          label: "Censos",
+          icon: <IoIosPersonAdd className="text-2xl" />,
+        },
+      ]
+    : [
+        {
+          id: "pedidos",
+          label: "Pedidos",
+          icon: <IoIosCart className="text-2xl" />,
+        },
+      ];
+
+  // Mostrar login si no está autenticado
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
-    <div className="App dark-mode">
-      <h1>PrinterManager + Supabase(demo)</h1>
+    <div className="flex h-screen bg-gray-900 text-white">
+      {/* Sidebar Minimalista */}
+      <div
+        className={`
+        bg-gray-800 border-r border-gray-700 transition-all duration-300 ease-in-out
+        ${sidebarCollapsed ? "w-20" : "w-64"}
+        flex flex-col
+      `}
+      >
+        {/* Header del Sidebar */}
+        <div
+          className={`flex items-center ${
+            sidebarCollapsed ? "justify-center p-3" : "justify-between p-4"
+          } border-b border-gray-700`}
+        >
+          {!sidebarCollapsed && (
+            <h1 className="text-xl font-bold text-white">PrinterManager</h1>
+          )}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            {sidebarCollapsed ? (
+              <IoIosArrowDropright className="text-xl" />
+            ) : (
+              <IoIosArrowDropleft className="text-xl" />
+            )}
+          </button>
+        </div>
 
-      <button className="add-btn" onClick={() => setShowModal(true)}>
-        <IoIosAdd />
-        Agregar impresora
-      </button>
+        {/* Menú de Navegación Simplificado */}
+        <nav className="flex-1 p-4">
+          <ul className="space-y-3">
+            {menuItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => handleTablaActivaChange(item.id)}
+                  className={`
+                    w-full flex items-center rounded-lg transition-all duration-200
+                    ${
+                      tablaActiva === item.id
+                        ? "bg-blue-600 text-white shadow-lg"
+                        : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                    }
+                    ${sidebarCollapsed ? "justify-center p-3" : "space-x-3 p-3"}
+                  `}
+                  title={sidebarCollapsed ? item.label : ""}
+                >
+                  {item.icon}
+                  {!sidebarCollapsed && (
+                    <span className="font-medium">{item.label}</span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-      <div className="tab-column-header">
-        <div
-          className={`tab-column ${
-            tablaActiva === "principal" ? "active" : ""
-          }`}
-          onClick={() => setTablaActiva("principal")}
-        >
-          Principales
-        </div>
-        <div
-          className={`tab-column ${tablaActiva === "backup" ? "active" : ""}`}
-          onClick={() => setTablaActiva("backup")}
-        >
-          Backup
-        </div>
-        <div
-          className={`tab-column ${
-            tablaActiva === "comercial" ? "active" : ""
-          }`}
-          onClick={() => setTablaActiva("comercial")}
-        >
-          Comercial
-        </div>
+        {/* Información del usuario y logout */}
+        {!sidebarCollapsed && (
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                <IoIosPerson className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user?.nombrepersona || "Usuario"}
+                </p>
+                <p className="text-xs text-gray-400 truncate">
+                  {isAdmin ? "Administrador" : "Usuario"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center space-x-2 p-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors"
+            >
+              <IoIosLogOut className="text-lg" />
+              <span className="text-sm">Cerrar Sesión</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {showLoadingMessage && <LoadingModal />}
+      {/* Contenido Principal */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header Minimalista */}
+        <header className="bg-gray-800 border-b border-gray-700 p-4">
+          <div className="flex items-center justify-center relative">
+            {/* Botón menú móvil a la izquierda - posición absoluta */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="absolute left-4 p-2 hover:bg-gray-700 rounded-lg transition-colors lg:hidden"
+            >
+              <IoIosMenu className="text-xl" />
+            </button>
 
-      <div>
-        {tablaActiva === "principal" && (
-          <PrinterTable
-            impresoras={impresoras.filter((imp) => imp.tipo === "principal")}
-            tipo="principal"
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onInfo={(data) => setInfoModal({ visible: true, data })}
-            onCopy={handleCopyPedido}
-          />
-        )}
+            {/* Título centrado */}
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-white">
+                {tablaActiva === "impresoras" && "Gestión de Impresoras"}
+                {tablaActiva === "servidores" && "Estado del Servidor"}
+                {tablaActiva === "pedidos" && "Lista de Pedidos"}
+                {tablaActiva === "censos" && "Validador de Censos"}
+              </h1>
+              {!isAdmin && (
+                <p className="text-sm text-gray-400 mt-1">
+                  Acceso limitado - Solo pedidos
+                </p>
+              )}
+            </div>
+          </div>
+        </header>
 
-        {tablaActiva === "backup" && (
-          <PrinterTable
-            impresoras={impresoras.filter((imp) => imp.tipo === "backup")}
-            tipo="backup"
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onInfo={(data) => setInfoModal({ visible: true, data })}
-            onCopy={handleCopyPedido}
-          />
-        )}
+        {/* Contenido - Menos espacio entre header y contenido */}
+        <main className="flex-1 overflow-auto bg-gray-900 pt-2">
+          {showLoadingMessage && <LoadingModal />}
 
-        {tablaActiva === "comercial" && (
-          <PrinterTable
-            impresoras={impresoras.filter((imp) => imp.tipo === "comercial")}
-            tipo="comercial"
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onInfo={(data) => setInfoModal({ visible: true, data })}
-            onCopy={handleCopyPedido}
-          />
-        )}
+          {/* Botón Agregar centrado - solo para impresoras y solo para admin */}
+          {tablaActiva === "impresoras" && isAdmin && (
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 whitespace-nowrap"
+              >
+                <IoIosAdd className="text-lg" />
+                <span>Agregar Impresora</span>
+              </button>
+            </div>
+          )}
+
+          {/* Tabs en columnas estilo original - SOLO para impresoras y solo para admin */}
+          {tablaActiva === "impresoras" && isAdmin && (
+            <div className="tab-column-header">
+              <div
+                className={`tab-column ${
+                  tipoImpresoraActiva === "principal" ? "active" : ""
+                }`}
+                onClick={() => setTipoImpresoraActiva("principal")}
+              >
+                Principales
+              </div>
+              <div
+                className={`tab-column ${
+                  tipoImpresoraActiva === "backup" ? "active" : ""
+                }`}
+                onClick={() => setTipoImpresoraActiva("backup")}
+              >
+                Backup
+              </div>
+              <div
+                className={`tab-column ${
+                  tipoImpresoraActiva === "comercial" ? "active" : ""
+                }`}
+                onClick={() => setTipoImpresoraActiva("comercial")}
+              >
+                Comercial
+              </div>
+            </div>
+          )}
+
+          {/* Contenido Principal */}
+          <div>
+            {tablaActiva === "impresoras" && isAdmin && (
+              <PrinterTable
+                impresoras={impresoras}
+                tipo={tipoImpresoraActiva}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onInfo={(data) => setInfoModal({ visible: true, data })}
+                onCopy={handleCopyPedido}
+                onUpdatePrinter={actualizarImpresora} // 🔧 NUEVA PROP
+                onUpdateAllPrinters={actualizarTodasImpresoras} // 🔧 NUEVA PROP
+              />
+            )}
+
+            {tablaActiva === "servidores" && isAdmin && (
+              <div id="server-status">
+                <ServerStatusTable />
+              </div>
+            )}
+          </div>
+          <div>
+            {tablaActiva === "pedidos" && <PedidosSection urls={urls} />}
+          </div>
+          {tablaActiva === "censos" && isAdmin && (
+            <div id="censos">
+              <Censo />
+            </div>
+          )}
+        </main>
       </div>
 
-      <ServerStatusTable />
-
+      {/* Modales */}
       {showModal && (
         <PrinterForm
           formData={formData}
@@ -497,7 +663,6 @@ Correo: ${pedidoData.correo}
               drivers_url: "",
               tipo: "principal",
               toner_reserva: "",
-              direccion: "",
             });
           }}
           isEditing={editingId !== null}
