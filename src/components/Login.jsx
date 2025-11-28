@@ -16,9 +16,42 @@ const Login = ({ onLogin }) => {
     }));
   };
 
+  const handleAdminLogin = () => {
+    // Simular datos de usuario admin
+    const adminUser = {
+      usuario: 'admin',
+      nombrepersona: 'Administrador',
+      rol: { nombrerol: 'ADMINISTRADOR' }
+    };
+
+    // Guardar datos del usuario en localStorage
+    localStorage.setItem('user', JSON.stringify(adminUser));
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('isAdmin', 'true');
+    localStorage.setItem('tablaActiva', 'impresoras');
+
+    Swal.fire({
+      icon: 'success',
+      title: `¡Bienvenido Administrador!`,
+      text: 'Acceso completo como Administrador',
+      background: "#2c2c2c",
+      color: "#fff",
+      confirmButtonColor: '#10B981',
+      confirmButtonText: 'Continuar'
+    }).then(() => {
+      onLogin(adminUser, true, 'impresoras');
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // 🔥 NUEVO: Verificar si son credenciales de admin
+    if (credentials.email === 'admin' && credentials.password === 'admin') {
+      handleAdminLogin();
+      return;
+    }
+
     if (!credentials.email || !credentials.password) {
       Swal.fire({
         icon: 'warning',
@@ -198,6 +231,20 @@ const Login = ({ onLogin }) => {
             )}
           </button>
         </form>
+
+        {/* Botón de acceso rápido Admin */}
+        <div className="mt-6 pt-6 border-t border-gray-700">
+          <button
+            onClick={handleAdminLogin}
+            className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg transition-colors duration-200 bg-green-600 hover:bg-green-700 text-white font-medium"
+          >
+            <IoIosLogIn className="text-lg" />
+            <span>Acceso Rápido: Admin</span>
+          </button>
+          <p className="text-xs text-gray-400 text-center mt-2">
+            Usar para demo: admin / admin
+          </p>
+        </div>
 
         {/* Información adicional */}
         <div className="mt-6 text-center">
