@@ -21,9 +21,12 @@ import {
 import ServerStatusTable from "./components/ServerStatusTable";
 import PedidosSection from "./components/PedidosSection";
 import Censo from "./components/Censo";
+import { supabase } from "./supabaseClient";
 
 function App() {
   const [impresoras, setImpresoras] = useState([]);
+  const [servidores, setServidores] = useState([]);
+  const [pedidos, setPedidos] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     ip: "",
@@ -32,6 +35,11 @@ function App() {
     drivers_url: "",
     tipo: "principal",
     toner_reserva: "",
+    direccion: "",
+    telefono: "",
+    correo: "",
+    numero_serie: "",
+    contador_paginas: 0,
   });
   const [editingId, setEditingId] = useState(null);
   const [infoModal, setInfoModal] = useState({ visible: false, data: null });
@@ -51,8 +59,6 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState(null);
 
-  const urls = "http://192.168.8.166:3001";
-
   // Verificar autenticación al cargar
   useEffect(() => {
     const authStatus = localStorage.getItem("isAuthenticated");
@@ -71,7 +77,6 @@ function App() {
     const sectionParam = urlParams.get("section");
 
     if (censoParam || sectionParam === "censos") {
-      // Si hay parámetro de censo o section=censos, activar la sección de censos
       setTablaActiva("censos");
     }
   }, []);
@@ -84,92 +89,121 @@ function App() {
   // 🔥 FUNCIÓN PARA CAMBIAR TABLA ACTIVA
   const handleTablaActivaChange = (nuevaTabla) => {
     setTablaActiva(nuevaTabla);
+
+    // Cargar datos según la tabla activa
+    if (nuevaTabla === "impresoras" && isAdmin) {
+      fetchImpresoras();
+    } else if (nuevaTabla === "servidores" && isAdmin) {
+      fetchServidores();
+    } else if (nuevaTabla === "pedidos") {
+      fetchPedidos();
+    }
   };
 
-  const actualizarImpresora = (id, nuevosDatos) => {
-    setImpresoras((prev) =>
-      prev.map((imp) => (imp.id === id ? { ...imp, ...nuevosDatos } : imp))
-    );
-  };
-
-  // Función para actualizar todas las impresoras
-  const actualizarTodasImpresoras = (nuevasImpresoras) => {
-    setImpresoras((prevImpresoras) => {
-      // Combinar los nuevos estados con la información existente de las impresoras
-      return prevImpresoras.map((impresora) => {
-        const impresoraActualizada = nuevasImpresoras.find(
-          (nueva) => nueva.id === impresora.id
-        );
-        if (impresoraActualizada) {
-          return {
-            ...impresora,
-            estado: impresoraActualizada.estado,
-            ultima_verificacion: impresoraActualizada.ultima_verificacion,
-          };
-        }
-        return impresora;
-      });
-    });
-  };
-  // ✅ Función para cargar impresoras
-  const fetchImpresoras = (showMessage = false) => {
-    if (!isAdmin) return; // Solo cargar si es admin
+  // ✅ Función para cargar impresoras desde Supabase
+  const fetchImpresoras = async (showMessage = false) => {
+    if (!isAdmin) return;
 
     if (showMessage) {
       setShowLoadingMessage(true);
     }
 
-    fetch(urls + "/api/toners")
-      .then((res) => res.json())
-      .then((data) => setImpresoras(data.impresoras || []))
-      .catch((err) => console.error("Error al obtener datos:", err))
-      .finally(() => {
-        if (showMessage) {
-          setTimeout(() => setShowLoadingMessage(false), 500);
-        }
+    try {
+      const { data, error } = await supabase
+        .from("impresoras")
+        .select("*")
+        .order("sucursal");
+
+      if (error) throw error;
+
+      setImpresoras(data || []);
+    } catch (err) {
+      console.error("Error al obtener impresoras:", err);
+      Swal.fire({
+        title: "Error",
+        text: "No se pudieron cargar las impresoras",
+        icon: "error",
+        background: "#2c2c2c",
+        color: "#fff",
       });
+    } finally {
+      if (showMessage) {
+        setTimeout(() => setShowLoadingMessage(false), 500);
+      }
+    }
   };
 
-  useEffect(() => {
-    if (isAuthenticated && isAdmin) {
-      const fetch_Impresoras = (showMessage = false) => {
-        if (showMessage) {
-          setShowLoadingMessage(true);
-        }
+  // ✅ Función para cargar servidores desde Supabase
+  const fetchServidores = async () => {
+    if (!isAdmin) return;
 
-        fetch(urls + "/api/toners")
-          .then((res) => res.json())
-          .then((data) => setImpresoras(data.impresoras || []))
-          .catch((err) => console.error("Error al obtener datos:", err))
-          .finally(() => {
-            if (showMessage) {
-              setTimeout(() => setShowLoadingMessage(false), 500);
-            }
-          });
-      };
+    try {
+      const { data, error } = await supabase
+        .from("servidores")
+        .select("*")
+        .order("sucursal");
 
-      fetch_Impresoras();
-      const interval = setInterval(() => {
-        fetch_Impresoras();
-      }, 3000);
-      return () => clearInterval(interval);
+      if (error) throw error;
+
+      setServidores(data || []);
+    } catch (err) {
+      console.error("Error al obtener servidores:", err);
     }
-  }, [isAuthenticated, isAdmin, urls]);
+  };
+
+  // ✅ Función para cargar pedidos desde Supabase
+  const fetchPedidos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("pedidos")
+        .select("*")
+        .order("fecha_pedido", { ascending: false });
+
+      if (error) throw error;
+
+      setPedidos(data || []);
+    } catch (err) {
+      console.error("Error al obtener pedidos:", err);
+    }
+  };
+
+  // Cargar datos iniciales cuando el usuario se autentica
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (isAdmin && tablaActiva === "impresoras") {
+        fetchImpresoras();
+        // Configurar suscripción en tiempo real para impresoras
+        const subscription = supabase
+          .channel("impresoras-changes")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "impresoras" },
+            () => {
+              fetchImpresoras();
+            }
+          )
+          .subscribe();
+
+        return () => {
+          subscription.unsubscribe();
+        };
+      } else if (tablaActiva === "pedidos") {
+        fetchPedidos();
+      }
+    }
+  }, [isAuthenticated, isAdmin, tablaActiva]);
 
   // Función de login
-  // En App.js, modifica la función handleLogin
   const handleLogin = (userData, adminStatus, seccionInicial = null) => {
     setUser(userData);
     setIsAuthenticated(true);
     setIsAdmin(adminStatus);
 
-    // 🔥 USAR LA SECCIÓN INICIAL SI SE PROPORCIONA, SINO LA LÓGICA NORMAL
     if (seccionInicial) {
       setTablaActiva(seccionInicial);
     } else if (!adminStatus) {
       setTablaActiva("pedidos");
     }
-    // Si es admin y no hay sección inicial, se mantiene la que estaba en localStorage
   };
 
   // Función de logout
@@ -191,7 +225,7 @@ function App() {
       localStorage.removeItem("isAuthenticated");
       localStorage.removeItem("isAdmin");
       localStorage.removeItem("user");
-      localStorage.removeItem("tablaActiva"); // 🔥 Limpiar también el estado de tabla
+      localStorage.removeItem("tablaActiva");
       setIsAuthenticated(false);
       setIsAdmin(false);
       setUser(null);
@@ -203,6 +237,7 @@ function App() {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  // ✅ Guardar/Actualizar impresora en Supabase
   const handleSubmit = async (e) => {
     e.preventDefault();
     const result = await Swal.fire({
@@ -222,19 +257,25 @@ function App() {
 
     if (!result.isConfirmed) return;
 
-    const method = editingId ? "PUT" : "POST";
-    const url = editingId
-      ? `${urls}/api/impresoras/${editingId}`
-      : `${urls}/api/impresoras`;
-
     try {
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      let error;
 
-      if (!response.ok) throw new Error("Error en la respuesta del servidor");
+      if (editingId) {
+        // Actualizar impresora existente
+        const { error: updateError } = await supabase
+          .from("impresoras")
+          .update(formData)
+          .eq("id", editingId);
+        error = updateError;
+      } else {
+        // Insertar nueva impresora
+        const { error: insertError } = await supabase
+          .from("impresoras")
+          .insert([formData]);
+        error = insertError;
+      }
+
+      if (error) throw error;
 
       await Swal.fire({
         title: editingId ? "¡Cambios guardados!" : "¡Impresora agregada!",
@@ -256,6 +297,11 @@ function App() {
         drivers_url: "",
         tipo: "principal",
         toner_reserva: "",
+        direccion: "",
+        telefono: "",
+        correo: "",
+        numero_serie: "",
+        contador_paginas: 0,
       });
       setEditingId(null);
     } catch (err) {
@@ -271,6 +317,7 @@ function App() {
     }
   };
 
+  // ✅ Eliminar impresora de Supabase
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: "¿Estás seguro?",
@@ -287,9 +334,12 @@ function App() {
 
     if (result.isConfirmed) {
       try {
-        await fetch(`${urls}/api/impresoras/${id}`, {
-          method: "DELETE",
-        });
+        const { error } = await supabase
+          .from("impresoras")
+          .delete()
+          .eq("id", id);
+
+        if (error) throw error;
 
         await Swal.fire({
           title: "¡Eliminado!",
@@ -323,11 +373,16 @@ function App() {
       tipo: impresora.tipo,
       toner_reserva: impresora.toner_reserva,
       direccion: impresora.direccion,
+      telefono: impresora.telefono,
+      correo: impresora.correo,
+      numero_serie: impresora.numero_serie,
+      contador_paginas: impresora.contador_paginas,
     });
     setEditingId(impresora.id);
     setShowModal(true);
   };
 
+  // ✅ Copiar pedido y actualizar en Supabase
   const handleCopyPedido = async (impresora) => {
     const pedidoData = {
       impresora_id: impresora.id,
@@ -379,6 +434,7 @@ Correo: ${pedidoData.correo}
 
     if (confirmacion.isConfirmed) {
       try {
+        // Copiar al portapapeles
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(textoParaCopiar);
         } else {
@@ -394,15 +450,31 @@ Correo: ${pedidoData.correo}
           if (!exito) throw new Error("No se pudo copiar con fallback");
         }
 
-        const response = await fetch(urls + "/api/pedido", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ impresora_id: pedidoData.impresora_id }),
-        });
+        // Crear pedido en Supabase
+        const { error: pedidoError } = await supabase.from("pedidos").insert([
+          {
+            solicitante: user?.nombrepersona || "Usuario",
+            sucursal: impresora.sucursal,
+            modelo_impresora: impresora.modelo,
+            tipo_toner: impresora.tipo,
+            cantidad: 1,
+            fecha_pedido: new Date().toISOString(),
+            estado: "pendiente",
+          },
+        ]);
 
-        if (!response.ok) {
-          throw new Error("Error al guardar el pedido en el backend");
-        }
+        if (pedidoError) throw pedidoError;
+
+        // Actualizar última fecha de pedido en la impresora
+        const { error: updateError } = await supabase
+          .from("impresoras")
+          .update({
+            ultimo_pedido_fecha: new Date().toISOString(),
+            ultimo_pedido_contador: impresora.contador_paginas,
+          })
+          .eq("id", impresora.id);
+
+        if (updateError) throw updateError;
 
         await Swal.fire({
           icon: "success",
@@ -641,19 +713,22 @@ Correo: ${pedidoData.correo}
                 onDelete={handleDelete}
                 onInfo={(data) => setInfoModal({ visible: true, data })}
                 onCopy={handleCopyPedido}
-                onUpdatePrinter={actualizarImpresora} // 🔧 NUEVA PROP
-                onUpdateAllPrinters={actualizarTodasImpresoras} // 🔧 NUEVA PROP
               />
             )}
 
             {tablaActiva === "servidores" && isAdmin && (
               <div id="server-status">
-                <ServerStatusTable />
+                <ServerStatusTable servidores={servidores} />
               </div>
             )}
           </div>
           <div>
-            {tablaActiva === "pedidos" && <PedidosSection urls={urls} />}
+            {tablaActiva === "pedidos" && (
+              <PedidosSection
+                pedidos={pedidos}
+                onUpdatePedidos={fetchPedidos}
+              />
+            )}
           </div>
           {tablaActiva === "censos" && isAdmin && (
             <div id="censos">
@@ -679,6 +754,11 @@ Correo: ${pedidoData.correo}
               drivers_url: "",
               tipo: "principal",
               toner_reserva: "",
+              direccion: "",
+              telefono: "",
+              correo: "",
+              numero_serie: "",
+              contador_paginas: 0,
             });
           }}
           isEditing={editingId !== null}
