@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faServer,
@@ -21,9 +21,7 @@ import {
   faFilter,
   faDatabase,
   faWifi,
-  faSatelliteDish,
   faProjectDiagram,
-  faSitemap,
   faEdit,
 } from "@fortawesome/free-solid-svg-icons";
 import Swal from "sweetalert2";
@@ -181,10 +179,10 @@ const ServerStatusTable = () => {
     }
   };
 
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     await loadServers();
     await loadStats();
-  };
+  }, []);
 
   // Cargar estadísticas
   const loadStats = async () => {
@@ -470,7 +468,7 @@ const ServerStatusTable = () => {
 
   useEffect(() => {
     loadAllData();
-  }, []);
+  }, [loadAllData]);
 
   // Efecto para actualización automática cada 5 minutos
   useEffect(() => {

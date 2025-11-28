@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   IoIosArrowBack,
   IoIosArrowForward,
-  IoIosCart,
   IoIosCheckmarkCircle,
-  IoIosCloseCircle,
   IoIosAdd,
   IoIosList,
   IoIosDownload,
@@ -183,8 +181,8 @@ const modelosYToners = {
 
 
   // 🔥 FUNCIÓN PARA OBTENER INFORMACIÓN DEL TONER SEGÚN EL MODELO
-  const getTonerInfo = (modeloImpresora) => {
-    for (const [key, value] of Object.entries(modelosYToners)) {
+  const getTonerInfo = useCallback((modeloImpresora) => {
+    for (const [value] of Object.entries(modelosYToners)) {
       if (value.modelos.includes(modeloImpresora)) {
         return {
           toner: value.toner,
@@ -196,7 +194,7 @@ const modelosYToners = {
       toner: "No especificado",
       tipo: "Blanco y negro"
     };
-  };
+  }, []);
 
   // Objeto que mapea cada sucursal con sus modelos de impresora (actualizado con los modelos correctos)
   const modelosPorSucursal = {
@@ -241,10 +239,6 @@ const modelosYToners = {
     ]
   };
 
-  const tiposToner = [
-    "Blanco y negro",
-    "Color"
-  ];
 
   // 🔥 ACTUALIZAR TONER AUTOMÁTICAMENTE CUANDO CAMBIA EL MODELO
   useEffect(() => {
@@ -256,7 +250,7 @@ const modelosYToners = {
         tipo_toner: tonerInfo.tipo
       }));
     }
-  }, [formData.modelo_impresora]);
+  }, [formData.modelo_impresora, getTonerInfo]);
 
   // 🔥 FUNCIONES DE PAGINACIÓN Y ORDENAMIENTO
   const handleSort = (key) => {
@@ -462,7 +456,7 @@ const modelosYToners = {
   };
 
   // Cargar pedidos desde la API
-  const fetchPedidos = async () => {
+  const fetchPedidos = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${urls}/api/pedidos`);
@@ -475,13 +469,13 @@ const modelosYToners = {
     } finally {
       setLoading(false);
     }
-  };
+  }, [urls]);
 
   useEffect(() => {
     if (!showForm) {
       fetchPedidos();
     }
-  }, [showForm]);
+  }, [showForm, fetchPedidos]);
 
   // Resetear modelo_impresora cuando cambia la sucursal
   useEffect(() => {
@@ -889,7 +883,6 @@ const modelosYToners = {
   };
 
   const renderStepContent = () => {
-    const step = steps[currentStep];
     const modelosDisponibles = getModelosPorSucursal();
     const tonerInfo = formData.modelo_impresora ? getTonerInfo(formData.modelo_impresora) : null;
     

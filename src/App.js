@@ -132,13 +132,29 @@ function App() {
 
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
-      fetchImpresoras();
+      const fetch_Impresoras = (showMessage = false) => {
+        if (showMessage) {
+          setShowLoadingMessage(true);
+        }
+
+        fetch(urls + "/api/toners")
+          .then((res) => res.json())
+          .then((data) => setImpresoras(data.impresoras || []))
+          .catch((err) => console.error("Error al obtener datos:", err))
+          .finally(() => {
+            if (showMessage) {
+              setTimeout(() => setShowLoadingMessage(false), 500);
+            }
+          });
+      };
+
+      fetch_Impresoras();
       const interval = setInterval(() => {
-        fetchImpresoras();
+        fetch_Impresoras();
       }, 3000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, isAdmin]);
+  }, [isAuthenticated, isAdmin, urls]);
 
   // Función de login
   // En App.js, modifica la función handleLogin

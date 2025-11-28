@@ -27,6 +27,7 @@ h2 {
   text-align: center;
   margin-bottom: 20px;
   background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: bold;

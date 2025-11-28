@@ -258,7 +258,7 @@ export const useClientData = (getNombreListaPrecioExterno) => {
       );
 
       // 🔥 CARGAR GRUPOS DE CLIENTE EN PARALELO
-      const [clienteResponse, grupoClienteResponse] = await Promise.all([
+      const [clienteResponse] = await Promise.all([
         fetch(
           `https://apps.mobile.com.py:8443/mbusiness/rest/private/censo/${codigoLimpio}`,
           {
@@ -349,11 +349,6 @@ export const useClientData = (getNombreListaPrecioExterno) => {
         codClienteActual,
       });
     }
-
-    // Si hay errores de canal, no continuar con otras validaciones de canal
-    const hayErroresDeCanal = nuevosErrores.some((error) =>
-      error.includes("canal")
-    );
 
     // Validar RUC con la API (tu código existente)
     if (dataFormateado.ruc && dataFormateado.ruc.trim() !== "") {

@@ -217,10 +217,7 @@ function Censo() {
     }
   };
 
-  // Función para alternar la visibilidad del SearchSection
-  const toggleSearchSection = () => {
-    setShowSearchSection(!showSearchSection);
-  };
+
 
    return (
     <div className="validator-root"> {/* Cambiar por validator-root */}

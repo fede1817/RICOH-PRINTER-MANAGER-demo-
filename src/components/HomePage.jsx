@@ -336,10 +336,7 @@ const handleValidateInNewTab = (censo) => {
   };
 
   // 🔥 FUNCIÓN MODIFICADA PARA RECARGAR LOS CENSOS
-  const handleReload = () => {
-    fetchCensos();
-  };
-
+ 
   // 🔥 FUNCIÓN PARA GENERAR LOS BOTONES DE PAGINACIÓN
   const renderPaginationButtons = () => {
     const buttons = [];

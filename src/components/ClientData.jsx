@@ -543,7 +543,7 @@ const ClientData = ({
         subcanal2: datos.subcanal2 || clienteData.subcanal2,
         codcanalerp: datos.canal || clienteData.canaleserp?.codcanalerp,
         
-        codzonaerp: datos.codzonaerp || clienteData.zonaserp?.codzonaerp,
+        codzonaerp: datos.codzonaerp || clienteData.zonaserp?.codzonaerp || null,
         
         gpsactivo: clienteData.gpsactivo !== undefined ? clienteData.gpsactivo : true,
         precision: clienteData.precision || "GPS",
@@ -558,7 +558,6 @@ const ClientData = ({
         codempresaerp: "PY02",
         codsucursalerp: clienteData.sucursal?.codsucursalerp || "S101",
         codclienteerp: clienteData.codclienteerp || "0",
-        codzonaerp: datos.codzonaerp || clienteData.zonaserp?.codzonaerp || null,
         clienteabc: clienteData.clienteabc || "",
         uid: clienteData.uid,
         codgrupoformaventaerp: clienteData.codgrupoformaventaerp || "CD",
