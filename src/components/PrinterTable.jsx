@@ -1,4 +1,3 @@
-import TonerBar from "./TonerBar";
 import { FaRegEdit } from "react-icons/fa";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { FaCartShopping } from "react-icons/fa6";
@@ -14,13 +13,12 @@ export default function PrinterTable({
   onDelete,
   onInfo,
   onCopy,
-  onUpdatePrinter, // 🔧 NUEVA PROP
-  onUpdateAllPrinters, // 🔧 NUEVA PROP
+  onUpdatePrinter,
+  onUpdateAllPrinters,
 }) {
   const [loadingStates, setLoadingStates] = useState({});
-  const [loadingAll, setLoadingAll] = useState(false); // 🔧 NUEVO ESTADO PARA CARGA GENERAL
+  const [loadingAll, setLoadingAll] = useState(false);
 
-  // 🔹 Función para verificar estado de una impresora específica
   const checkSinglePrinterStatus = async (printerId) => {
     setLoadingStates((prev) => ({ ...prev, [printerId]: true }));
 
@@ -35,7 +33,6 @@ export default function PrinterTable({
 
       const data = await res.json();
 
-      // 🔧 ACTUALIZAR EL ESTADO EN EL COMPONENTE PADRE
       if (onUpdatePrinter) {
         onUpdatePrinter(printerId, {
           estado: data.estado,
@@ -43,7 +40,6 @@ export default function PrinterTable({
         });
       }
 
-      // Mostrar mensaje de éxito
       Swal.fire({
         icon: "success",
         title: "Estado actualizado",
@@ -70,9 +66,8 @@ export default function PrinterTable({
     }
   };
 
-  // 🔹 Función para verificar estado de TODAS las impresoras
   const checkAllPrintersStatus = async () => {
-    setLoadingAll(true); // 🔧 ACTIVAR SPINNER GENERAL
+    setLoadingAll(true);
 
     try {
       const res = await fetch(
@@ -85,7 +80,6 @@ export default function PrinterTable({
 
       const data = await res.json();
 
-      // 🔧 ACTUALIZAR TODAS LAS IMPRESORAS EN EL COMPONENTE PADRE
       if (onUpdateAllPrinters) {
         onUpdateAllPrinters(data);
       }
@@ -110,11 +104,10 @@ export default function PrinterTable({
         confirmButtonColor: "#d33",
       });
     } finally {
-      setLoadingAll(false); // 🔧 DESACTIVAR SPINNER GENERAL
+      setLoadingAll(false);
     }
   };
 
-  // 🔹 Función para obtener el ícono y color del estado
   const getStatusInfo = (estado) => {
     const status = estado || "verificando";
 
@@ -123,28 +116,41 @@ export default function PrinterTable({
         return {
           icon: "🟢",
           text: "Conectada",
-          class: "status-connected",
+          bgColor: "bg-green-500/15",
+          textColor: "text-green-500",
+          borderColor: "border-green-500/30",
         };
       case "desconectada":
         return {
           icon: "🔴",
           text: "Desconectada",
-          class: "status-disconnected",
+          bgColor: "bg-red-500/15",
+          textColor: "text-red-500",
+          borderColor: "border-red-500/30",
         };
       default:
         return {
           icon: "🟡",
           text: "Verificando",
-          class: "status-checking",
+          bgColor: "bg-yellow-500/15",
+          textColor: "text-yellow-500",
+          borderColor: "border-yellow-500/30",
         };
     }
   };
 
-  // 🔹 Función para subir archivo e imprimir
+  const getTonerColor = (percentage) => {
+    if (percentage <= 0) return "bg-gray-500";
+    if (percentage < 10) return "bg-red-600";
+    if (percentage < 20) return "bg-orange-500";
+    if (percentage < 50) return "bg-yellow-500";
+    if (percentage < 80) return "bg-blue-500";
+    return "bg-green-500";
+  };
+
   const handlePrint = async (impresoraId, file, impresoraEstado) => {
     if (!file) return;
 
-    // Verificar estado antes de imprimir
     if (impresoraEstado === "desconectada") {
       Swal.fire({
         icon: "warning",
@@ -157,45 +163,14 @@ export default function PrinterTable({
       return;
     }
 
-    // Crear y mostrar el spinner
     const spinner = document.createElement("div");
     spinner.innerHTML = `
-    <div style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-    ">
-      <div style="
-        padding: 30px;
-        border-radius: 10px;
-        text-align: center;
-        color: white;
-      ">
-        <div style="
-          width: 50px;
-          height: 50px;
-          border: 5px solid #f3f3f3;
-          border-top: 5px solid #3085d6;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 15px;
-        "></div>
-        <p>Enviando a imprimir...</p>
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+      <div class="bg-gray-800 p-8 rounded-xl text-center">
+        <div class="w-12 h-12 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-white">Enviando a imprimir...</p>
       </div>
     </div>
-    <style>
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    </style>
   `;
 
     document.body.appendChild(spinner);
@@ -251,121 +226,230 @@ export default function PrinterTable({
   };
 
   return (
-    <>
-      <table className="dark-table">
-        <thead>
+    <div className="overflow-x-auto bg-gray-800 rounded-lg shadow-lg m-4">
+      <table className="min-w-full divide-y divide-gray-700">
+        <thead className="bg-gray-900">
           <tr>
-            <th>
-              <div className="ip-header">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <div className="flex items-center justify-between">
                 <span>IP</span>
-                {/* 🔧 BOTÓN PARA ACTUALIZAR TODOS LOS ESTADOS - AHORA EN EL HEADER DE IP */}
-                <div className="tooltip-container">
+                <div className="relative group">
                   <button
-                    className="refresh-all-btn"
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                      loadingAll
+                        ? "bg-gray-600 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700"
+                    }`}
                     onClick={checkAllPrintersStatus}
                     disabled={loadingAll}
                   >
                     {loadingAll ? (
-                      <div className="spinner-small"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-white rounded-full animate-spin"></div>
                     ) : (
-                      <FaSync size={14} />
+                      <>
+                        <FaSync size={12} />
+                        <span>Actualizar</span>
+                      </>
                     )}
                   </button>
-                  <span className="tooltip">Actualizar todos los estados</span>
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                    Actualizar todos los estados
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black/80"></div>
+                  </div>
                 </div>
               </div>
             </th>
-            <th>Sucursal</th>
-            <th>Modelo</th>
-            <th>Nivel de Tóner Negro</th>
-            <th>Estado</th>
-            <th>Info</th>
-            <th>Acciones</th>
-            <th>Pedido</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              Sucursal
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              Modelo
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              Nivel de Tóner
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              Estado
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              Info
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              Acciones
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              Pedido
+            </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="bg-gray-800 divide-y divide-gray-700">
           {impresoras
             .filter((i) => i.tipo === tipo)
             .map((impresora, index) => {
               const statusInfo = getStatusInfo(impresora.estado);
               const isLoading = loadingStates[impresora.id];
+              const tonerPercentage = impresora.toner_anterior || 0;
 
               return (
-                <tr key={`${tipo}-${index}`}>
-                  <td>
-                    <div className="ip-cell">
+                <tr
+                  key={`${tipo}-${index}`}
+                  className="hover:bg-gray-750 transition-colors"
+                >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    <div className="flex items-center">
                       <a
                         href={`http://${impresora.ip}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={
+                        className={`hover:text-blue-400 transition-colors ${
                           impresora.estado === "desconectada"
-                            ? "link-disabled"
+                            ? "opacity-50 pointer-events-none line-through"
                             : ""
-                        }
+                        }`}
                       >
                         {impresora.ip}
                       </a>
                     </div>
                   </td>
-                  <td>{impresora.sucursal}</td>
-                  <td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    {impresora.sucursal}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     <a
                       href={impresora.drivers_url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 hover:underline transition-colors"
                     >
                       {impresora.modelo}
                     </a>
                   </td>
-                  <td>
-                    {impresora.estado === "desconectada" ? (
-                      <span className="toner-unavailable">No disponible</span>
-                    ) : impresora.toner_anterior <= 0 ? (
-                      "No disponible"
-                    ) : (
-                      <TonerBar value={impresora.toner_anterior} />
-                    )}
-                  </td>
-                  <td>
-                    <div className="status-cell">
-                      <div className={`status-indicator ${statusInfo.class}`}>
-                        <span className="status-icon">{statusInfo.icon}</span>
-                        <span className="status-text">{statusInfo.text}</span>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="w-full max-w-xs">
+                      {impresora.estado === "desconectada" ? (
+                        <div className="flex items-center">
+                          <div className="w-full bg-gray-700 rounded-full h-6">
+                            <div className="bg-gray-600 h-6 rounded-full flex items-center justify-center">
+                              <span className="text-xs text-gray-400 px-2">
+                                Desconectada
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : tonerPercentage <= 0 ? (
+                        <div className="flex items-center">
+                          <div className="w-full bg-gray-700 rounded-full h-6">
+                            <div className="bg-gray-600 h-6 rounded-full flex items-center justify-center">
+                              <span className="text-xs text-gray-400 px-2">
+                                No disponible
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          {/* Barra de progreso completa */}
+                          <div className="w-full bg-gray-700 rounded-full h-6 overflow-hidden shadow-inner relative">
+                            {/* Barra de progreso coloreada */}
+                            <div
+                              className={`h-6 rounded-full ${getTonerColor(
+                                tonerPercentage
+                              )} transition-all duration-500 ease-out`}
+                              style={{ width: `${tonerPercentage}%` }}
+                            />
+                            
+                            {/* Texto del porcentaje - SIEMPRE centrado sobre toda la barra */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-xs font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                                {tonerPercentage}%
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Indicador de nivel crítico */}
+                          {tonerPercentage < 20 && tonerPercentage > 0 && (
+                            <div className="absolute -top-2 -right-2">
+                              <span className="flex h-5 w-5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center">
+                                  <span className="text-xs text-white">!</span>
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Etiqueta de estado debajo de la barra */}
+                      <div className="mt-1 text-xs text-gray-400">
+                        {impresora.estado === "desconectada"
+                          ? "Estado: Desconectada"
+                          : tonerPercentage <= 0
+                          ? "Sin datos de tóner"
+                          : tonerPercentage < 10
+                          ? "Nivel CRÍTICO"
+                          : tonerPercentage < 20
+                          ? "Nivel BAJO"
+                          : tonerPercentage < 50
+                          ? "Nivel MEDIO"
+                          : tonerPercentage < 80
+                          ? "Nivel ALTO"
+                          : "Nivel OPTIMO"}
                       </div>
-                      <div className="tooltip-container">
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded border ${statusInfo.bgColor} ${statusInfo.textColor} ${statusInfo.borderColor} min-w-[110px]`}
+                      >
+                        <span className="text-sm">{statusInfo.icon}</span>
+                        <span className="text-xs font-medium">
+                          {statusInfo.text}
+                        </span>
+                      </div>
+                      <div className="relative group">
                         <button
-                          className="refresh-single-btn"
+                          className={`p-1.5 rounded transition-colors ${
+                            isLoading
+                              ? "bg-gray-700 cursor-not-allowed"
+                              : "bg-gray-700/50 hover:bg-gray-600"
+                          }`}
                           onClick={() => checkSinglePrinterStatus(impresora.id)}
                           disabled={isLoading}
                         >
                           {isLoading ? (
-                            <div className="spinner-small"></div>
+                            <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-white rounded-full animate-spin"></div>
                           ) : (
-                            <FaSync size={12} />
+                            <FaSync size={12} className="text-gray-300" />
                           )}
                         </button>
-                        <span className="tooltip">Verificar estado</span>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                          Verificar estado
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black/80"></div>
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td>
-                    <div className="tooltip-container">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="relative group">
                       <button
-                        className="info-button"
+                        className="p-2 bg-gray-700/50 hover:bg-gray-600 rounded transition-colors text-blue-400 hover:text-blue-300"
                         onClick={() => onInfo(impresora)}
                       >
-                        <BsInfoCircleFill />
+                        <BsInfoCircleFill size={18} />
                       </button>
-                      <span className="tooltip">Ver información</span>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                        Ver información
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black/80"></div>
+                      </div>
                     </div>
                   </td>
-                  <td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <input
                       type="file"
                       id={`file-${impresora.id}`}
-                      style={{ display: "none" }}
+                      className="hidden"
                       onChange={(e) =>
                         handlePrint(
                           impresora.id,
@@ -375,48 +459,66 @@ export default function PrinterTable({
                       }
                       disabled={impresora.estado === "desconectada"}
                     />
-                    <div className="action-buttons">
-                      <div className="tooltip-container">
+                    <div className="flex gap-2">
+                      <div className="relative group">
                         <button
-                          className="print-btn"
+                          className={`p-2 rounded transition-colors ${
+                            impresora.estado === "desconectada"
+                              ? "bg-gray-700/30 cursor-not-allowed opacity-50"
+                              : "bg-gray-700/50 hover:bg-gray-600"
+                          } text-blue-400 hover:text-blue-300`}
                           onClick={() =>
-                            document.getElementById(`file-${impresora.id}`).click()
+                            document
+                              .getElementById(`file-${impresora.id}`)
+                              .click()
                           }
                           disabled={impresora.estado === "desconectada"}
                         >
-                          <FaPrint />
+                          <FaPrint size={16} />
                         </button>
-                        <span className="tooltip">Imprimir archivo</span>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                          Imprimir archivo
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black/80"></div>
+                        </div>
                       </div>
-                      <div className="tooltip-container">
+                      <div className="relative group">
                         <button
-                          className="edit-btn"
+                          className="p-2 bg-gray-700/50 hover:bg-gray-600 rounded transition-colors text-green-400 hover:text-green-300"
                           onClick={() => onEdit(impresora)}
                         >
-                          <FaRegEdit />
+                          <FaRegEdit size={16} />
                         </button>
-                        <span className="tooltip">Editar Impresora</span>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                          Editar Impresora
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black/80"></div>
+                        </div>
                       </div>
-                      <div className="tooltip-container">
+                      <div className="relative group">
                         <button
-                          className="delete-btn"
+                          className="p-2 bg-gray-700/50 hover:bg-red-900/30 rounded transition-colors text-red-400 hover:text-red-300"
                           onClick={() => onDelete(impresora.id)}
                         >
-                          <RiDeleteBin6Line />
+                          <RiDeleteBin6Line size={16} />
                         </button>
-                        <span className="tooltip">Eliminar Impresora</span>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                          Eliminar Impresora
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black/80"></div>
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td>
-                    <div className="tooltip-container">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="relative group">
                       <button
-                        className="pedido-btn"
+                        className="p-2 bg-gray-700/50 hover:bg-gray-600 rounded transition-colors text-yellow-400 hover:text-yellow-300"
                         onClick={() => onCopy(impresora)}
                       >
-                        <FaCartShopping />
+                        <FaCartShopping size={16} />
                       </button>
-                      <span className="tooltip">Generar pedido de tóner</span>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                        Generar pedido de tóner
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black/80"></div>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -425,215 +527,17 @@ export default function PrinterTable({
         </tbody>
       </table>
 
-      <style jsx>{`
-        .ip-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-        }
-
-        .refresh-all-btn {
-          background: #4caf50;
-          color: white;
-          border: none;
-          padding: 6px 12px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          white-space: nowrap;
-        }
-
-        .refresh-all-btn:hover:not(:disabled) {
-          background: #45a049;
-        }
-
-        .refresh-all-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .ip-cell {
-          display: flex;
-          align-items: center;
-        }
-
-        .status-cell {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .status-indicator {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 10px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 500;
-          min-width: 110px;
-        }
-
-        .status-connected {
-          background: rgba(76, 175, 80, 0.15);
-          color: #4caf50;
-          border: 1px solid rgba(76, 175, 80, 0.3);
-        }
-
-        .status-disconnected {
-          background: rgba(244, 67, 54, 0.15);
-          color: #f44336;
-          border: 1px solid rgba(244, 67, 54, 0.3);
-        }
-
-        .status-checking {
-          background: rgba(255, 193, 7, 0.15);
-          color: #ffc107;
-          border: 1px solid rgba(255, 193, 7, 0.3);
-        }
-
-        .status-icon {
-          font-size: 14px;
-        }
-
-        .status-text {
-          font-size: 11px;
-        }
-
-        .spinner-small {
-          width: 14px;
-          height: 14px;
-          border: 2px solid #f3f3f3;
-          border-top: 2px solid #ffffff;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        .refresh-single-btn {
-          background: rgba(255, 255, 255, 0.1);
-          border: none;
-          cursor: pointer;
-          padding: 6px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #fff;
-        }
-
-        .refresh-single-btn:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.2);
-        }
-
-        .refresh-single-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .link-disabled {
-          opacity: 0.5;
-          pointer-events: none;
-          text-decoration: line-through;
-        }
-
-        .toner-unavailable {
-          color: #888;
-          font-style: italic;
-        }
-
-        /* 🔧 ESTILOS PARA TOOLTIPS */
-        .tooltip-container {
-          position: relative;
-          display: inline-block;
-        }
-
-        .tooltip {
-          position: absolute;
-          bottom: -35px;
-          left: 50%;
-          transform: translateX(-50%);
-          background-color: rgba(0, 0, 0, 0.8);
-          color: white;
-          padding: 6px 12px;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          white-space: nowrap;
-          opacity: 0;
-          visibility: hidden;
-          transition: opacity 0.3s, visibility 0.3s;
-          z-index: 100;
-          pointer-events: none;
-        }
-
-        .tooltip::after {
-          content: '';
-          position: absolute;
-          top: -5px;
-          left: 50%;
-          transform: translateX(-50%);
-          border-width: 0 5px 5px 5px;
-          border-style: solid;
-          border-color: transparent transparent rgba(0, 0, 0, 0.8) transparent;
-        }
-
-        .tooltip-container:hover .tooltip {
-          opacity: 1;
-          visibility: visible;
-        }
-
-        /* Estilos para los botones de acción */
-        .action-buttons {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-
-        .info-button, .print-btn, .edit-btn, .delete-btn, .pedido-btn {
-          background: rgba(255, 255, 255, 0.1);
-          border: none;
-          cursor: pointer;
-          padding: 8px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #fff;
-          transition: background-color 0.3s;
-        }
-
-        .info-button:hover:not(:disabled),
-        .print-btn:hover:not(:disabled),
-        .edit-btn:hover:not(:disabled),
-        .pedido-btn:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.2);
-        }
-
-        .delete-btn:hover:not(:disabled) {
-          background: rgba(244, 67, 54, 0.3);
-        }
-
-        .info-button:disabled,
-        .print-btn:disabled,
-        .edit-btn:disabled,
-        .delete-btn:disabled,
-        .pedido-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        @keyframes spin {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
-    </>
+      {/* Si no hay impresoras */}
+      {impresoras.filter((i) => i.tipo === tipo).length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          No hay impresoras del tipo{" "}
+          {tipo === "principal"
+            ? "Principal"
+            : tipo === "backup"
+            ? "Backup"
+            : "Comercial"}
+        </div>
+      )}
+    </div>
   );
 }

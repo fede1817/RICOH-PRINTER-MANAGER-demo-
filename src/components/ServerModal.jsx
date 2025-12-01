@@ -1,7 +1,6 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSave } from '@fortawesome/free-solid-svg-icons';
-import './ServerModal.css';
 
 const ServerModal = ({ 
   isOpen, 
@@ -19,7 +18,6 @@ const ServerModal = ({
   });
   const [errors, setErrors] = React.useState({});
 
-  // Inicializar formData cuando el modal se abre o serverData cambia
   React.useEffect(() => {
     if (isOpen) {
       if (isEditing && serverData) {
@@ -48,7 +46,6 @@ const ServerModal = ({
       [name]: value
     }));
     
-    // Limpiar error del campo cuando el usuario empiece a escribir
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -60,19 +57,16 @@ const ServerModal = ({
   const validateForm = () => {
     const newErrors = {};
 
-    // Validar IP
     if (!formData.ip.trim()) {
       newErrors.ip = 'La IP es requerida';
     } else if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(formData.ip)) {
       newErrors.ip = 'Formato de IP inválido';
     }
 
-    // Validar Sucursal
     if (!formData.sucursal.trim()) {
       newErrors.sucursal = 'La sucursal es requerida';
     }
 
-    // Validar Nombre
     if (!formData.nombre.trim()) {
       newErrors.nombre = 'El nombre es requerido';
     }
@@ -98,14 +92,14 @@ const ServerModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="server-modal-overlay">
-      <div className="server-modal">
-        <div className="server-modal-header">
-          <h2 className="server-modal-title">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden animate-modal-appear">
+        <div className="flex justify-between items-center p-6 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800">
+          <h2 className="text-xl font-bold text-white">
             {isEditing ? 'Editar Servidor' : 'Agregar Nuevo Servidor'}
           </h2>
           <button 
-            className="server-modal-close" 
+            className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 hover:text-white"
             onClick={handleClose}
             type="button"
           >
@@ -113,11 +107,12 @@ const ServerModal = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="server-modal-form">
-          <div className="server-modal-body">
-            <div className="server-form-group">
-              <label htmlFor="ip" className="server-form-label">
-                Dirección IP *
+        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          <div className="p-6 overflow-y-auto max-h-[60vh]">
+            {/* Campo IP */}
+            <div className="mb-5">
+              <label htmlFor="ip" className="block text-sm font-medium text-gray-300 mb-2">
+                Dirección IP <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -125,15 +120,20 @@ const ServerModal = ({
                 name="ip"
                 value={formData.ip}
                 onChange={handleChange}
-                className={`server-form-input ${errors.ip ? 'server-input-error' : ''}`}
+                className={`w-full px-4 py-3 bg-gray-900 border ${
+                  errors.ip ? 'border-red-500 focus:ring-red-500/30' : 'border-gray-700 focus:border-blue-500 focus:ring-blue-500/30'
+                } rounded-lg focus:ring-2 focus:ring-opacity-30 outline-none transition-all text-white placeholder-gray-500`}
                 placeholder="Ej: 192.168.1.1"
               />
-              {errors.ip && <span className="server-error-message">{errors.ip}</span>}
+              {errors.ip && (
+                <span className="mt-1.5 text-sm text-red-400 block">{errors.ip}</span>
+              )}
             </div>
 
-            <div className="server-form-group">
-              <label htmlFor="sucursal" className="server-form-label">
-                Sucursal *
+            {/* Campo Sucursal */}
+            <div className="mb-5">
+              <label htmlFor="sucursal" className="block text-sm font-medium text-gray-300 mb-2">
+                Sucursal <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -141,15 +141,20 @@ const ServerModal = ({
                 name="sucursal"
                 value={formData.sucursal}
                 onChange={handleChange}
-                className={`server-form-input ${errors.sucursal ? 'server-input-error' : ''}`}
+                className={`w-full px-4 py-3 bg-gray-900 border ${
+                  errors.sucursal ? 'border-red-500 focus:ring-red-500/30' : 'border-gray-700 focus:border-blue-500 focus:ring-blue-500/30'
+                } rounded-lg focus:ring-2 focus:ring-opacity-30 outline-none transition-all text-white placeholder-gray-500`}
                 placeholder="Ej: Sucursal Central"
               />
-              {errors.sucursal && <span className="server-error-message">{errors.sucursal}</span>}
+              {errors.sucursal && (
+                <span className="mt-1.5 text-sm text-red-400 block">{errors.sucursal}</span>
+              )}
             </div>
 
-            <div className="server-form-group">
-              <label htmlFor="nombre" className="server-form-label">
-                Nombre del Equipo *
+            {/* Campo Nombre */}
+            <div className="mb-5">
+              <label htmlFor="nombre" className="block text-sm font-medium text-gray-300 mb-2">
+                Nombre del Equipo <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -157,22 +162,27 @@ const ServerModal = ({
                 name="nombre"
                 value={formData.nombre}
                 onChange={handleChange}
-                className={`server-form-input ${errors.nombre ? 'server-input-error' : ''}`}
+                className={`w-full px-4 py-3 bg-gray-900 border ${
+                  errors.nombre ? 'border-red-500 focus:ring-red-500/30' : 'border-gray-700 focus:border-blue-500 focus:ring-blue-500/30'
+                } rounded-lg focus:ring-2 focus:ring-opacity-30 outline-none transition-all text-white placeholder-gray-500`}
                 placeholder="Ej: Servidor Principal"
               />
-              {errors.nombre && <span className="server-error-message">{errors.nombre}</span>}
+              {errors.nombre && (
+                <span className="mt-1.5 text-sm text-red-400 block">{errors.nombre}</span>
+              )}
             </div>
 
-            <div className="server-form-group">
-              <label htmlFor="tipo" className="server-form-label">
-                Tipo de Equipo *
+            {/* Campo Tipo */}
+            <div>
+              <label htmlFor="tipo" className="block text-sm font-medium text-gray-300 mb-2">
+                Tipo de Equipo <span className="text-red-500">*</span>
               </label>
               <select
                 id="tipo"
                 name="tipo"
                 value={formData.tipo}
                 onChange={handleChange}
-                className="server-form-select"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all text-white appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%2394a3b8%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M19%209l-7%207-7-7%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_12px_center] bg-[length:16px_16px]"
               >
                 <option value="servidor">Servidor</option>
                 <option value="switch">Switch</option>
@@ -183,20 +193,20 @@ const ServerModal = ({
             </div>
           </div>
 
-          <div className="server-modal-footer">
+          <div className="p-6 border-t border-gray-700 bg-gray-900/50 flex flex-col sm:flex-row gap-3">
             <button 
               type="button" 
-              className="server-modal-btn server-modal-btn-cancel"
+              className="flex-1 px-5 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-lg font-medium transition-all duration-200 border border-gray-600 hover:border-gray-500"
               onClick={handleClose}
             >
               Cancelar
             </button>
             <button 
               type="submit" 
-              className="server-modal-btn server-modal-btn-primary"
+              className="flex-1 px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
             >
               <FontAwesomeIcon icon={faSave} />
-              {isEditing ? ' Actualizar' : ' Guardar'}
+              {isEditing ? 'Actualizar' : 'Guardar'}
             </button>
           </div>
         </form>

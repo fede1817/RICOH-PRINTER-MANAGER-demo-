@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import "./App.css";
 import PrinterTable from "./components/PrinterTable";
 import PrinterForm from "./components/PrinterForm";
 import InfoModal from "./components/InfoModal";
@@ -665,7 +664,7 @@ Correo: ${pedidoData.correo}
             <div className="flex justify-center mb-4">
               <button
                 onClick={() => setShowModal(true)}
-                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap shadow-lg hover:shadow-xl"
               >
                 <IoIosAdd className="text-lg" />
                 <span>Agregar Impresora</span>
@@ -675,30 +674,28 @@ Correo: ${pedidoData.correo}
 
           {/* Tabs en columnas estilo original - SOLO para impresoras y solo para admin */}
           {tablaActiva === "impresoras" && isAdmin && (
-            <div className="tab-column-header">
-              <div
-                className={`tab-column ${
-                  tipoImpresoraActiva === "principal" ? "active" : ""
-                }`}
-                onClick={() => setTipoImpresoraActiva("principal")}
-              >
-                Principales
-              </div>
-              <div
-                className={`tab-column ${
-                  tipoImpresoraActiva === "backup" ? "active" : ""
-                }`}
-                onClick={() => setTipoImpresoraActiva("backup")}
-              >
-                Backup
-              </div>
-              <div
-                className={`tab-column ${
-                  tipoImpresoraActiva === "comercial" ? "active" : ""
-                }`}
-                onClick={() => setTipoImpresoraActiva("comercial")}
-              >
-                Comercial
+            <div className="flex justify-center mt-4 mb-6">
+              <div className="flex bg-gray-800 rounded-lg p-1">
+                {["principal", "backup", "comercial"].map((tipo) => (
+                  <button
+                    key={tipo}
+                    onClick={() => setTipoImpresoraActiva(tipo)}
+                    className={`
+                      px-6 py-2 rounded-md font-medium transition-all duration-200 capitalize
+                      ${
+                        tipoImpresoraActiva === tipo
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "text-gray-400 hover:text-white hover:bg-gray-700"
+                      }
+                    `}
+                  >
+                    {tipo === "principal"
+                      ? "Principales"
+                      : tipo === "backup"
+                      ? "Backup"
+                      : "Comercial"}
+                  </button>
+                ))}
               </div>
             </div>
           )}
